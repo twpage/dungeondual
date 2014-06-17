@@ -1,0 +1,40 @@
+<html>
+<head>
+	{% load staticfiles %}
+	<title>{% block title %}no title{% endblock %}</title>
+	{% block scripts %}{% endblock %}
+</head>
+
+<body>
+	{% if messages %}
+	<ul>
+	    {% for message in messages %}
+	    <li class="error">{{ message }}</li>
+	    {% endfor %}
+	</ul>
+	{% endif %}
+
+	<div id="content">
+		{% block content %}
+        no content
+        {% endblock %}
+    </div>
+
+    <div id="footer">
+		{% if user.is_authenticated %}
+		You are logged in as <b>{{ user.username }}</b> [<a href="/accounts/logout">logout</a>]
+		{% else %}
+		You are not logged in [<a href="/accounts/login">login</a>]
+		{% endif %}
+
+    </div>
+
+	<hr/>
+	<p>Created by Todd Page for the <a href="http://roguebasin.roguelikedevelopment.org/index.php?title=7DRL_Challenge_2014">2014 7DRL Challenge</a>. You can e-mail me at <img src="{% static "ddual/images/address_2.png" %}" />, or find me <a href="http://twitter.com/heroicfisticuff">@heroicfisticuff</a> on twitter, sort of.</p>
+
+	{% block disqus %}
+	{% endblock %}
+</body>
+
+
+</html>

@@ -1,0 +1,57 @@
+body {
+	background-color: #141414;
+	color: white;
+}
+
+table {
+	border: 1px solid white;
+}
+
+td {
+		vertical-align: top;
+}
+
+#id_debug_footer {
+	color: white;
+}
+
+a:visited {
+	color: white;
+}
+
+a.herotype {
+	font-size: 300%;
+}
+
+.squire {
+	color: red;
+}
+
+.apprentice {
+	color: purple;
+}
+
+#squire {
+	color: red;
+}
+
+#apprentice {
+	color: purple;
+}
+
+a.gamelink {
+	color: orange;
+}
+
+table.gamelink {
+	border: none;
+}
+
+li.error {
+	font-size: 200%;
+	color: red;
+}
+
+.serverstatus {
+	color: red;
+}
