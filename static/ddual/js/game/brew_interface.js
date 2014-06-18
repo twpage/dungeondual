@@ -846,36 +846,36 @@
 
     UserInterface.prototype.inputGameplay = function(keycode, shift_key) {
       var offset_xy;
-      if (keycode === 37 || keycode === 65) {
+      if (__indexOf.call(Brew.keymap.MOVE_LEFT, keycode) >= 0) {
         offset_xy = Brew.directions.w;
         return this.game.movePlayer(offset_xy);
-      } else if (keycode === 39 || keycode === 68) {
+      } else if (__indexOf.call(Brew.keymap.MOVE_RIGHT, keycode) >= 0) {
         offset_xy = Brew.directions.e;
         return this.game.movePlayer(offset_xy);
-      } else if (keycode === 38 || keycode === 87) {
+      } else if (__indexOf.call(Brew.keymap.MOVE_UP, keycode) >= 0) {
         offset_xy = Brew.directions.n;
         return this.game.movePlayer(offset_xy);
-      } else if (keycode === 40 || keycode === 83) {
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWN, keycode) >= 0) {
         offset_xy = Brew.directions.s;
         return this.game.movePlayer(offset_xy);
-      } else if (keycode === 32 || keycode === 96) {
+      } else if (__indexOf.call(Brew.keymap.GENERIC_ACTION, keycode) >= 0) {
         return this.game.doPlayerAction();
-      } else if (keycode === 84) {
+      } else if (__indexOf.call(Brew.keymap.TALK, keycode) >= 0) {
         this.popup.context = "chat";
         this.popup.text = "";
         return this.showChat();
-      } else if (keycode === 85) {
+      } else if (__indexOf.call(Brew.keymap.USE, keycode) >= 0) {
         this.popup.context = "apply";
         return this.showInventory();
-      } else if (keycode === 73) {
+      } else if (__indexOf.call(Brew.keymap.INVENTORY, keycode) >= 0) {
         return this.showInventory();
-      } else if (keycode === 90) {
+      } else if (__indexOf.call(Brew.keymap.SHOW_ABILITIES, keycode) >= 0) {
         return this.showAbilities();
-      } else if (keycode === 191) {
+      } else if (__indexOf.call(Brew.keymap.HELP, keycode) >= 0) {
         return this.showHelp();
-      } else if (keycode === 192) {
+      } else if (__indexOf.call(Brew.keymap.DEBUG, keycode) >= 0) {
         return this.debugAtCoords();
-      } else if (keycode === 49 || keycode === 50 || keycode === 51 || keycode === 52 || keycode === 53 || keycode === 54) {
+      } else if (__indexOf.call(Brew.keymap.ABILITY_HOTKEY, keycode) >= 0) {
         return this.game.doPlayerSelectAbility(keycode);
       }
     };

@@ -870,27 +870,27 @@ class Brew.UserInterface
 	inputGameplay: (keycode, shift_key) ->
 
 		# LEFT: left arrow + a
-		if keycode in [37, 65]
+		if keycode in Brew.keymap.MOVE_LEFT
 			offset_xy = Brew.directions.w # new Coordinate(-1, 0)
 			@game.movePlayer(offset_xy)
 
 		# RIGHT: right arrow + d
-		else if keycode in [39, 68]
+		else if keycode in Brew.keymap.MOVE_RIGHT
 			offset_xy = Brew.directions.e # new Coordinate(1, 0)
 			@game.movePlayer(offset_xy)
 
 		# UP: up arrow + w
-		else if keycode in [38, 87]
+		else if keycode in Brew.keymap.MOVE_UP
 			offset_xy = Brew.directions.n # new Coordinate(0, -1)
 			@game.movePlayer(offset_xy)
 
 		# DOWN: down arrow + s
-		else if keycode in [40, 83]
+		else if keycode in Brew.keymap.MOVE_DOWN
 			offset_xy = Brew.directions.s # new Coordinate(0, 1)
 			@game.movePlayer(offset_xy)
 			
 		# DO ACTION: space, NUMPAD 0
-		else if keycode in [32, 96]
+		else if keycode in Brew.keymap.GENERIC_ACTION
 			@game.doPlayerAction()
 			
 		# # d : drop
@@ -918,19 +918,19 @@ class Brew.UserInterface
 		# 	@popup.context = "throw"
 		# 	@showInventory()
 			
-		# t : throw
-		else if keycode == 84
+		# t : talk
+		else if keycode in Brew.keymap.TALK
 			@popup.context = "chat"
 			@popup.text = ""
 			@showChat()
 
 		# u : use
-		else if keycode == 85
+		else if keycode in Brew.keymap.USE
 			@popup.context = "apply"
 			@showInventory()
 
 		# i : inv
-		else if keycode == 73
+		else if keycode in Brew.keymap.INVENTORY
 			@showInventory()
 			
 		# # q : toggle pathmaps debug
@@ -942,17 +942,20 @@ class Brew.UserInterface
 		# 	@debugMonsterFov()
 
 		# z : abilitieZ
-		else if keycode == 90
+		else if keycode in Brew.keymap.SHOW_ABILITIES
 			@showAbilities()
 
-		else if keycode == 191 # / ? help
+		# else if keycode == 191 # / ? help
+		else if keycode in Brew.keymap.HELP
 			@showHelp()
 
-		else if keycode == 192 ## back tick `
+		# else if keycode == 192 ## back tick `
+		else if keycode in Brew.keymap.DEBUG
 			@debugAtCoords()
 
 		# 1 - 6
-		else if keycode in [49, 50, 51, 52, 53, 54]
+		# else if keycode in [49, 50, 51, 52, 53, 54]
+		else if keycode in Brew.keymap.ABILITY_HOTKEY
 			@game.doPlayerSelectAbility(keycode)
 
 	inputAbilities: (keycode) ->
