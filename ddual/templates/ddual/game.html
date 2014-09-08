@@ -224,17 +224,11 @@
 			$("#id_div_popup").append(popup_display.getContainer());
 			$("#id_div_popup").hide()
 
-			$("#id_div_pair").attr("width", display.getContainer().width);
-			$("#id_div_pair").attr("height", display.getContainer().height);
-			$("#id_div_pair").append(pair_display.getContainer());
-
 			// disable double-click to select
 			display.getContainer().onselectstart = function () { return false; }
 			popup_display.getContainer().onselectstart = function () { return false; }
 			layer_display.getContainer().onselectstart = function () { return false; }
 			dialog_display.getContainer().onselectstart = function () { return false; }
-			pair_display.getContainer().onselectstart = function () { return false; }
-			footer_display.getContainer().onselectstart = function () { return false; }
 			
 			$(document).keydown(function (event) {
 				brew_game.keypress(event);
@@ -313,18 +307,6 @@
 					<div id="id_div_layer"></div>
 					<div id="id_div_popup"></div>
 				</div>
-			</td>
-			<td>
-				<div id="id_div_pair"></div>
-			</td>
-		</tr>
-		<tr>
-			<td>
-				<div id="id_div_footer"></div>
-				<span>Press <strong>?</strong> at any time for help, or see the <a href="http://heroicfisticuffs.blogspot.com/2014/03/how-to-play-dungeon-dual.html">guide</a> I wrote.</span>
-			</td>
-			<td>
-				<!-- pair footer?? -->
 			</td>
 		</tr>
 	</table>

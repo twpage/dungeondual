@@ -1,7 +1,4 @@
 *.pyc
-
-dungeondual-dev.sublime-project
-dungeondual-dev.sublime-workspace
-
-
+*.sublime-project
+*.sublime-workspace
 settings.py

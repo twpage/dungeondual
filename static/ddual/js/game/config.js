@@ -22,6 +22,28 @@
     damage_fix: 1,
     include_monsters_depth_lag: 2,
     include_items_depth_lag: 2,
+    window: {
+      messages: {
+        width: 46,
+        height: 3
+      },
+      game: {
+        width: 46,
+        height: 22
+      },
+      footer: {
+        width: 46,
+        height: 1
+      },
+      playerinfo: {
+        width: 17,
+        height: 26
+      },
+      viewinfo: {
+        width: 17,
+        height: 26
+      }
+    },
     max_depth: 9,
     sync: {
       space: 0.4,

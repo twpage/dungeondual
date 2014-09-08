@@ -5,9 +5,6 @@ class Brew.UserInterface
 		@my_layer_display = display_info["layer"]
 		@my_dialog_display = display_info["dialog"]
 		@my_popup_display = display_info["popup"]
-		@my_pair_display = display_info["pair"]
-		@my_hud_display = display_info["hud"]
-		@my_footer_display = display_info["footer"]
 
 		@my_tile_width = @my_display.getContainer().width / Brew.config.screen_tiles_width
 		@my_tile_height = @my_display.getContainer().height / Brew.config.screen_tiles_height

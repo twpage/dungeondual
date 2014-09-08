@@ -10,9 +10,6 @@
       this.my_layer_display = display_info["layer"];
       this.my_dialog_display = display_info["dialog"];
       this.my_popup_display = display_info["popup"];
-      this.my_pair_display = display_info["pair"];
-      this.my_hud_display = display_info["hud"];
-      this.my_footer_display = display_info["footer"];
       this.my_tile_width = this.my_display.getContainer().width / Brew.config.screen_tiles_width;
       this.my_tile_height = this.my_display.getContainer().height / Brew.config.screen_tiles_height;
       this.my_view = new Coordinate(0, 0);
