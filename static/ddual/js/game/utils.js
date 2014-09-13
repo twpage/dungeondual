@@ -219,6 +219,12 @@
     minColorRGB: function(rgb_one, rgb_two) {
       return [Math.min(rgb_one[0], rgb_two[0]), Math.min(rgb_one[1], rgb_two[1]), Math.min(rgb_one[2], rgb_two[2])];
     },
+    colorRandomize: function(rgb_color, maxmin_spread) {
+      var new_color, random_spread;
+      random_spread = [Math.floor(ROT.RNG.getUniform() * ((maxmin_spread[0] * 2) + 1)) - maxmin_spread[0], Math.floor(ROT.RNG.getUniform() * ((maxmin_spread[1] * 2) + 1)) - maxmin_spread[1], Math.floor(ROT.RNG.getUniform() * ((maxmin_spread[2] * 2) + 1)) - maxmin_spread[2]];
+      new_color = [Math.max(0, Math.min(255, rgb_color[0] + random_spread[0])), Math.max(0, Math.min(255, rgb_color[1] + random_spread[1])), Math.max(0, Math.min(255, rgb_color[2] + random_spread[2]))];
+      return new_color;
+    },
     dist2d: function(xy_a, xy_b) {
       return this.dist2d_xy(xy_a.x, xy_a.y, xy_b.x, xy_b.y);
     },
@@ -378,7 +384,7 @@
       return info;
     },
     createSplatter: function(center_xy, max_dist) {
-      var dist, splat, splatter_level, start_x, start_y, volume, x, y, _i, _j, _ref, _ref1;
+      var dist, rando, splat, splatter_level, start_x, start_y, volume, x, y, _i, _j, _ref, _ref1;
       start_x = center_xy.x - max_dist;
       start_y = center_xy.y - max_dist;
       splat = {};
@@ -388,7 +394,12 @@
           if (dist > max_dist) {
             splatter_level = 0;
           } else {
-            splatter_level = (max_dist - dist) * ROT.RNG.getUniform();
+            if (x === center_xy.x && y === center_xy.y) {
+              rando = 0.99;
+            } else {
+              rando = ROT.RNG.getUniform();
+            }
+            splatter_level = (max_dist - dist) * rando;
             volume = Math.floor(splatter_level) / (max_dist - 1);
             if (volume > 0) {
               splat[keyFromXY(x, y)] = volume;

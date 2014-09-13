@@ -4,16 +4,22 @@ class Brew.UserInterface
 		@my_display = display_info["game"]
 		@my_layer_display = display_info["layer"]
 		@my_dialog_display = display_info["dialog"]
-		@my_popup_display = display_info["popup"]
 
-		@my_tile_width = @my_display.getContainer().width / Brew.config.screen_tiles_width
-		@my_tile_height = @my_display.getContainer().height / Brew.config.screen_tiles_height
+		@my_tile_width = @my_display.getContainer().width / Brew.panels.full.width
+		@my_tile_height = @my_display.getContainer().height / Brew.panels.full.height
 
 		@my_view = new Coordinate(0, 0)
 		@input_handler = null
 		@popup = {}
 		@displayat = {}
 		@highlights = {}
+
+		@panel_offsets = 
+			"game": new Coordinate(Brew.panels.game.x, Brew.panels.game.y)
+			"messages": new Coordinate(Brew.panels.messages.x, Brew.panels.messages.y)
+			"footer": new Coordinate(Brew.panels.footer.x, Brew.panels.footer.y)
+			"playerinfo": new Coordinate(Brew.panels.playerinfo.x, Brew.panels.playerinfo.y)
+			"viewinfo": new Coordinate(Brew.panels.viewinfo.x, Brew.panels.viewinfo.y)
 
 		@debug =
 			fov: {}
@@ -56,43 +62,156 @@ class Brew.UserInterface
 				@inputDied(ui_keycode, shift_key)
 			else if @input_handler == "victory"
 				@inputVictory(ui_keycode, shift_key)
-
+				# todo: consolidate all one-key screens, died, victory, etc
+			else if @input_handler == "targeting"
+				@inputTargeting(ui_keycode, shift_key)
 
 	# ------------------------------------------------------------
-	# Drawing
+	# Utils stuff
+	# ------------------------------------------------------------
+
+	screenToMap: (screen_xy) ->
+		# take a screen coord from the full canvas and convert it to a map coord
+		if @getPanelAt(screen_xy) != "game"
+			return null
+		else
+			map_xy = screen_xy.subtract(@panel_offsets["game"]).add(@my_view)
+			return map_xy
+
+	mapToScreen: (map_xy) ->
+		# take a map coordinate and transfer it to a full grid xy
+		screen_xy = map_xy.subtract(@my_view).add(@panel_offsets["game"])
+		if @getPanelAt(screen_xy) != "game"
+			return null
+		else
+			return screen_xy
+
+	appendBlanksToString: (text, max_length) ->
+		black_hex = ROT.Color.toHex(Brew.colors.black)
+
+		num_spaces = max_length - text.length
+		spaces = ("_" for i in [0..num_spaces]).join("")
+		
+		return text+"%c{#{black_hex}}#{spaces}"
+
+	# ------------------------------------------------------------
+	# Drawing 
+	# ------------------------------------------------------------
+
+	drawDisplayAll: (options) ->
+		@clearLayerDisplay()
+
+		@drawGamePanel(options)
+		@drawPlayerInfoPanel()
+		@drawMessagesPanel()
+		# @drawFooterPanel()
+		
+		# @drawViewInfoPanel()
+
+	drawOnPanel: (panel_name, x, y, code, forecolor, bgcolor) ->
+		panel_x = @panel_offsets[panel_name].x + x
+		panel_y = @panel_offsets[panel_name].y + y
+		@my_display.draw(panel_x, panel_y, code, forecolor, bgcolor)
+		true
+
+	drawTextOnPanel: (panel_name, x, y, text, max_width) ->
+		panel_x = @panel_offsets[panel_name].x + x
+		panel_y = @panel_offsets[panel_name].y + y
+		@my_display.drawText(panel_x, panel_y, text, max_width)
+		true
+
+	drawBarOnPanel: (panel_name, start_x, start_y, max_tiles, current_amount, max_amount, full_color) ->
+		black_hex = ROT.Color.toHex(Brew.colors.black)
+
+		raw_num_bars = Math.min(1.0, current_amount / max_amount) * max_tiles
+		num_bars = Math.ceil(raw_num_bars)
+		remainder = num_bars - raw_num_bars
+		tile = null
+
+		for i in [0..max_tiles-1]
+			if i == num_bars - 1
+				if remainder < 0.25
+					fadecolor = full_color
+				else if remainder < 0.5
+					fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.25)
+				else if remainder < 0.75
+					fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.5)
+				else
+					fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.75)
+
+				@drawOnPanel(panel_name, start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color))
+
+			else if i < num_bars
+				@drawOnPanel(panel_name, start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color))
+
+			else
+				@drawOnPanel(panel_name, start_x + i, start_y, " ", "white", ROT.Color.toHex(Brew.colors.normal))
+
+		violet_rgb = ROT.Color.toHex(full_color)
+		@drawTextOnPanel(panel_name, start_x + max_tiles + 1, start_y, "%c{#{violet_rgb}}#{current_amount}%c{#{black_hex}}_")
+
+	# ------------------------------------------------------------
+	# figure out which panel we're in
+	# ------------------------------------------------------------
+	getPanelAt: (xy) ->
+		# given a SCREEN XY (full screen), determine which panel we're clicking on
+		panel_name = "dunno"
+
+		if xy.x < Brew.panels.playerinfo.x
+			# to the left of the info panels
+			if xy.y < Brew.panels.game.y
+				panel_name = "messages"
+			else if xy.y < Brew.panels.footer.y
+				panel_name = "game"
+			else
+				panel_name = "footer"
+		else
+			# to the right of the game panel
+			if xy.x < Brew.panels.playerinfo.x
+				panel_name = "playerinfo"
+			else
+				panel_name = "viewinfo"
+
+		return panel_name
+
+	# ------------------------------------------------------------
+	# draw game
 	# ------------------------------------------------------------
 
 	centerViewOnPlayer: () ->
-		if @gameLevel().width <= @my_display.width and @gameLevel().height <= @my_display.height
+		if @gameLevel().width <= Brew.panels.game.width and @gameLevel().height <= Brew.panels.game.height
 			return
 			
 		half_x = (@my_display.getOptions().width / 2)
 		half_y = (@my_display.getOptions().height / 2)
 		
-		view_x = Math.min(Math.max(0, @gamePlayer().coordinates.x - half_x), @gameLevel().width - @my_display.getOptions().width)
-		view_y = Math.min(Math.max(0, @gamePlayer().coordinates.y - half_y), @gameLevel().height - @my_display.getOptions().height)
+		view_x = Math.min(Math.max(0, @gamePlayer().coordinates.x - half_x), @gameLevel().width - Brew.panels.game.width)
+		view_y = Math.min(Math.max(0, @gamePlayer().coordinates.y - half_y), @gameLevel().height - Brew.panels.game.height)
 		
 		@my_view = new Coordinate(view_x, view_y)
 		
-	drawDisplayAll: (options) ->
-		@clearLayerDisplay()
-		for row_y in [0..@my_display.getOptions().height-1]
-			for col_x in [0..@my_display.getOptions().width-1]
+	drawGamePanel: (options) ->
+		for row_y in [Brew.panels.game.y..Brew.panels.game.y+Brew.panels.game.height-1]
+			for col_x in [Brew.panels.game.x..Brew.panels.game.x+Brew.panels.game.width-1]
 				screen_xy = new Coordinate(col_x, row_y)
-				@drawDisplayAt(screen_xy, null, options)
+				@drawGamePanelAt(screen_xy, null, options)
 
 	drawMapAt: (map_xy, options) ->
-		screen_xy = map_xy.subtract(@my_view)
-		@drawDisplayAt(screen_xy, map_xy, options)
+		screen_xy = @mapToScreen(map_xy)
+		if screen_xy?
+			@drawGamePanelAt(screen_xy, null, options)
 		
-	drawDisplayAt: (xy, map_xy, options) ->
+	drawGamePanelAt: (xy, map_xy, options) ->
 		options ?= {}
 		color_mod = options?.color_mod ? [0, 0, 0]
-		over_saturate = options?.over_saturate ? false
+		# over_saturate = options?.over_saturate ? false
+		over_saturate = true
 
+		map_xy = @screenToMap(xy)
 		if not map_xy?
-			map_xy = xy.add(@my_view)
-		
+			console.log(xy)
+			return
+
 		if not @gameLevel().checkValid(map_xy)
 			console.log(map_xy)
 			return
@@ -135,6 +254,7 @@ class Brew.UserInterface
 		
 
 		@clearDisplayAt(@my_layer_display, xy)
+		@clearDisplayAt(@my_dialog_display, xy)
 
 		# not in FOV, or in FOV but not sufficiently lit
 		if not can_view_and_lit
@@ -180,8 +300,12 @@ class Brew.UserInterface
 				if feature? and feature.code?
 					draw[0] = feature.code
 
+				# features should modify fore or back color but not both
 				if feature? and feature.color?
-					draw[1] = feature.getColor()
+					draw[1] = ROT.Color.interpolate(terrain.color, feature.color, feature.intensity)
+
+				else if feature? and feature.bgcolor?
+					draw[2] = ROT.Color.interpolate(terrain.bgcolor, feature.bgcolor, feature.intensity)
 
 			# overtop layer features
 			if overhead?
@@ -204,55 +328,25 @@ class Brew.UserInterface
 		h = @highlights[map_xy.toKey()]
 		if h?
 			draw[2] = h
-		# # is monster current target? change background color
-		# if monster? and @firetarget.id? and monster.id == @firetarget.id and not monster.is_dead
-		# 	draw[2] = ROT.Color.add(draw[2], [0, 50, 0])
 
 		@my_display.draw(xy.x, xy.y, draw[0], ROT.Color.toHex(draw[1]), ROT.Color.toHex(draw[2]))
+
 		if not options?.color_override?
 			@displayat[map_xy.toKey()] = draw
 
-
-	updatePairDisplay: (drawings) ->
-		# console.log("updating pair display UI")
-
-		shade_color = Brew.colors.pair_shade
-
-		for own key, draw_array of drawings
-			xy = keyToCoord(key)
-			code = draw_array[0]
-			color = ROT.Color.toHex(ROT.Color.interpolate(draw_array[1], shade_color, 0.5))
-			bgcolor = ROT.Color.toHex(ROT.Color.interpolate(draw_array[2], shade_color, 0.5))
-
-			@my_pair_display.draw(xy.x, xy.y, code, color, bgcolor)
-
-		@drawings = drawings
-		return true
-
-	updatePairDisplayAt: (xy) ->
-		# use cached drawings to redraw pair screen
-
-		shade_color = Brew.colors.pair_shade
-
-		key = xy.toKey()
-		draw_array = @drawings[key]
-		code = draw_array[0]
-		color = ROT.Color.toHex(ROT.Color.interpolate(draw_array[1], shade_color, 0.5))
-		bgcolor = ROT.Color.toHex(ROT.Color.interpolate(draw_array[2], shade_color, 0.5))
-
-		@my_pair_display.draw(xy.x, xy.y, code, color, bgcolor)
-		return true
-
 	# ------------------------------------------------------------
-	# draw HUD
+	# draw HUD / playerinfo
 	# ------------------------------------------------------------
-
+	
 	drawHudAll: () ->
+		@drawPlayerInfoPanel()
+		# @drawViewInfoPanel()
+
+	drawPlayerInfoPanel: () ->
 		# redraw the HUD
 		player = @gamePlayer()
-		player.hero_type = "Squire"
-		desc = "#{player.name} <#{player.hero_type}>"
-		@my_hud_display.drawText(0, 0, player.name)
+		desc = "#{player.name} <#{Brew.hero_type[player.hero_type].name}>"
+		@drawTextOnPanel("playerinfo", 0, 0, desc, Brew.panels.playerinfo.width)
 		
 		# health
 		row_start = 1
@@ -260,104 +354,68 @@ class Brew.UserInterface
 		hp = player.getStat(Brew.stat.health).getCurrent()
 		for i in [1..maxhp]
 			color = if (i <= hp) then Brew.colors.red else Brew.colors.normal
-			@my_hud_display.draw(i-1, row_start, Brew.unicode.heart, ROT.Color.toHex(color))
+			@drawOnPanel("playerinfo", i-1, row_start, Brew.unicode.heart, ROT.Color.toHex(color))
 
 		# stamina
-		@drawHudBar(0, 2, 18, 
+		@drawBarOnPanel("playerinfo", 0, 2, 13, 
 			player.getStat(Brew.stat.stamina).getCurrent(), 
 			player.getStat(Brew.stat.stamina).getMax(),
 			Brew.colors.violet
 		)
 
-		@drawHudSync()
-		@drawHudAbility()
+		# @drawHudSync()
+		# @drawHudAbility()
 
-	drawHudAbility: () ->
-		black_hex = ROT.Color.toHex(Brew.colors.black)
-		player = @gamePlayer()
-		if player.active_ability?
-			abil_hotkey = player.abilities.indexOf(player.active_ability) + 1
-			abil_desc = "Using #{Brew.ability[player.active_ability].name.toUpperCase()} (#{abil_hotkey})"
-		else
-			abil_desc = "No ability selected"
+	# drawHudAbility: () ->
+	# 	black_hex = ROT.Color.toHex(Brew.colors.black)
+	# 	player = @gamePlayer()
+	# 	if player.active_ability?
+	# 		abil_hotkey = player.abilities.indexOf(player.active_ability) + 1
+	# 		abil_desc = "Using #{Brew.ability[player.active_ability].name.toUpperCase()} (#{abil_hotkey})"
+	# 	else
+	# 		abil_desc = "No ability selected"
 		
-		start_x = Math.floor(Brew.config.screen_tiles_width / 2)
-		max_width = Math.floor(Brew.config.screen_tiles_width / 2)
+	# 	start_x = Math.floor(Brew.config.screen_tiles_width / 2)
+	# 	max_width = Math.floor(Brew.config.screen_tiles_width / 2)
 
-		num_spaces = max_width - abil_desc.length
-		spaces = ("_" for i in [0..num_spaces-1]).join("")
-		@my_hud_display.drawText(start_x, 0, "%c{#{black_hex}}#{spaces}%c{white}#{abil_desc}")
+	# 	num_spaces = max_width - abil_desc.length
+	# 	spaces = ("_" for i in [0..num_spaces-1]).join("")
+	# 	@my_hud_display.drawText(start_x, 0, "%c{#{black_hex}}#{spaces}%c{white}#{abil_desc}")
 
 
-	drawHudSync: () ->
-		# draw the sync status
+	# drawHudSync: () ->
+	# 	# draw the sync status
 
-		black_hex = ROT.Color.toHex(Brew.colors.black)
+	# 	black_hex = ROT.Color.toHex(Brew.colors.black)
 
-		if not @game.is_paired
-			status_msg = "Not Connected"
-			message = "No Data"
-		else if @game.is_paired and not @game.pair.sync
-			status_msg = "Connected"
-			message = "Awaiting Sync"
-		else
-			status_msg = if @game.pair.sync.status then "In Sync" else "Out of Sync"
-			message = @game.pair.sync.message
+	# 	if not @game.is_paired
+	# 		status_msg = "Not Connected"
+	# 		message = "No Data"
+	# 	else if @game.is_paired and not @game.pair.sync
+	# 		status_msg = "Connected"
+	# 		message = "Awaiting Sync"
+	# 	else
+	# 		status_msg = if @game.pair.sync.status then "In Sync" else "Out of Sync"
+	# 		message = @game.pair.sync.message
 
-		start_x = Math.floor(Brew.config.screen_tiles_width / 2)
-		max_width = Math.floor(Brew.config.screen_tiles_width / 2)
+	# 	start_x = Math.floor(Brew.config.screen_tiles_width / 2)
+	# 	max_width = Math.floor(Brew.config.screen_tiles_width / 2)
 
-		num_spaces = max_width - status_msg.length
-		spaces = ("_" for i in [0..num_spaces-1]).join("")
-		@my_hud_display.drawText(start_x, 1, "%c{#{black_hex}}#{spaces}%c{white}#{status_msg}")
+	# 	num_spaces = max_width - status_msg.length
+	# 	spaces = ("_" for i in [0..num_spaces-1]).join("")
+	# 	@my_hud_display.drawText(start_x, 1, "%c{#{black_hex}}#{spaces}%c{white}#{status_msg}")
 
-		num_spaces = max_width - message.length
-		spaces = ("_" for i in [0..num_spaces-1]).join("")
-		@my_hud_display.drawText(start_x, 2, "%c{#{black_hex}}#{spaces}%c{white}#{message}")
+	# 	num_spaces = max_width - message.length
+	# 	spaces = ("_" for i in [0..num_spaces-1]).join("")
+	# 	@my_hud_display.drawText(start_x, 2, "%c{#{black_hex}}#{spaces}%c{white}#{message}")
 
-	drawHudBar: (start_x, start_y, max_tiles, current_amount, max_amount, full_color) ->
-		black_hex = ROT.Color.toHex(Brew.colors.black)
+	drawMessagesPanel: (message) ->
+		if not message
+			return false
 
-		raw_num_bars = Math.min(1.0, current_amount / max_amount) * max_tiles
-		num_bars = Math.ceil(raw_num_bars)
-		remainder = num_bars - raw_num_bars
-		tile = null
+		@drawTextOnPanel("messages", 0, 2, @appendBlanksToString(message, Brew.panels.messages.width))
 
-		for i in [0..max_tiles-1]
-			if i == num_bars - 1
-				if remainder < 0.25
-					fadecolor = full_color
-				else if remainder < 0.5
-					fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.25)
-				else if remainder < 0.75
-					fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.5)
-				else
-					fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.75)
-
-				@my_hud_display.draw(start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color))
-
-			else if i < num_bars
-				@my_hud_display.draw(start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color))
-
-			else
-				@my_hud_display.draw(start_x + i, start_y, " ", "white", ROT.Color.toHex(Brew.colors.normal))
-
-		violet_rgb = ROT.Color.toHex(full_color)
-		@my_hud_display.drawText(start_x + max_tiles + 1, start_y, "%c{#{violet_rgb}}#{current_amount}%c{#{black_hex}}_")
-
-	drawMessage: (message) ->
-		black_hex = ROT.Color.toHex(Brew.colors.black)
-
-		max_length = Brew.config.screen_tiles_width - 1
-		num_spaces = max_length - message.length
-		spaces = ("_" for i in [0..num_spaces]).join("")
-
-		x = 0
-		y = 3 * @my_tile_height
-		# @my_hud_display._backend._context.clearRect(x, y, @my_tile_width * max_length, @my_tile_height)
-		@my_hud_display.drawText(0, 3, message+"%c{#{black_hex}}#{spaces}")
-
-	drawFooter: (look_xy) ->
+	drawFooterPanel: (look_xy) ->
 		black_hex = ROT.Color.toHex(Brew.colors.black)
 		in_view = @gamePlayer().canView(look_xy)
 		lighted = @gameLevel().getLightAt(look_xy)
@@ -389,11 +447,33 @@ class Brew.UserInterface
 			else
 				message = "You see #{t.name}"
 
-		max_length = Brew.config.screen_tiles_width - 1
+		max_length = Brew.panels.footer.width - 1
 		num_spaces = max_length - message.length
 		spaces = ("_" for i in [0..num_spaces]).join("")
 
-		@my_footer_display.drawText(0, 0, message+"%c{#{black_hex}}#{spaces}")
+		@drawTextOnPanel("footer", 0, 0, message+"%c{#{black_hex}}#{spaces}")
+
+	# ------------------------------------------------------------
+	# handle on-screen targeting
+	# ------------------------------------------------------------
+
+	updateAndDrawTargeting: (target_xy) ->
+		# clear old line if any
+		old_line = @popup.line ? []
+
+		for xy in old_line
+			delete @highlights[xy.toKey()]
+			@drawMapAt(xy)
+
+		# get the new line
+		line = Brew.utils.getLineBetweenPoints(@gamePlayer().coordinates, target_xy)
+
+		for xy in line
+			@highlights[xy.toKey()] = Brew.colors.yellow
+			@drawMapAt(xy)
+
+		@popup.line = line
+		@popup.xy = target_xy
 
 	# ------------------------------------------------------------
 	# generic display code pop-up menus and layers
@@ -425,9 +505,6 @@ class Brew.UserInterface
 	clearDisplay: (display) ->
 		# rot.js should have a way to do this :(
 		display._backend._context.clearRect(0, 0, display.getContainer().width, display.getContainer().height)
-
-	clearPopupDisplay: ->
-		@clearDisplay(@my_popup_display)
 
 	clearLayerDisplay: ->
 		@clearDisplay(@my_layer_display)
@@ -465,70 +542,55 @@ class Brew.UserInterface
 		@clearDialogDisplay()
 		$("#id_div_dialog").show()
 
-	showInfoScreen: (width_tiles, height_tiles) ->
+	activateDialogScreen: (title, instruct_text, highlight_color) ->
 		# dim the screen background
-		@drawDisplayAll({ color_override: [50, 50, 50]})
+		@drawDisplayAll({ color_override: [75, 75, 75]})
 
-		# reset popup div location todo: slide it out
-		pos = $(@my_display.getContainer()).position()
-		
-		# figure out where to center the pop up
-		isCentered = true
+		@clearDialogDisplay()
 
-		offset_width_tiles = Math.floor((Brew.config.screen_tiles_width - width_tiles) / 2)
-		offset_height_tiles = Math.floor((Brew.config.screen_tiles_height - height_tiles) / 2)
-
-		$("#id_div_popup").css({
-			position: "absolute",
-			top: pos.top
-			left: pos.left
-		})
-
-		# $("#id_div_popup").attr("width", offset_width_tiles * @my_tile_width)
-		# $("#id_div_popup").attr("height", offset_height_tiles * @my_tile_height)
-
-		@clearPopupDisplay()
-
-		@drawBorders(@my_popup_display, Brew.colors.white, 
+		@drawBorders(@my_dialog_display, highlight_color, 
 		{
-			x: offset_width_tiles
-			y: offset_height_tiles
-			width: width_tiles
-			height: height_tiles
+			x: Brew.panels.game.x
+			y: Brew.panels.game.y
+			width: Brew.panels.game.width - 1
+			height: Brew.panels.game.height - 1
 		})
 		
-		$("#id_div_popup").show()
+		color_hex = ROT.Color.toHex(highlight_color)
+		@my_dialog_display.drawText(
+			Brew.panels.game.x + 1, 
+			Brew.panels.game.y + 0, 
+			"%c{#{color_hex}}[ #{title} ]"
+			)
 
-
-		@my_popup_display.drawText(offset_width_tiles + 1, offset_height_tiles + 1, @game.getItemNameFromCatalog(@popup.item))
-
-		@my_popup_display.drawText(offset_width_tiles + 1, offset_height_tiles + 3, @popup.item.description, width_tiles - 1)
+		@my_dialog_display.drawText(
+			Brew.panels.game.x + 1, 
+			Brew.panels.game.y + Brew.panels.game.height - 1, 
+			"%c{#{color_hex}}[ #{instruct_text} ]"
+			)
 
 		@input_handler = "popup_to_dismiss"
 
+	showInfoScreen: () ->
+		title = @game.getItemNameFromCatalog(@popup.item)
+		instructions = "Press any key to dismiss"
+		@activateDialogScreen(title, instructions, Brew.colors.white)
+
+		# draw description
+		@my_dialog_display.drawText(
+			Brew.panels.game.x + 1, 
+			Brew.panels.game.y + 3, 
+			@popup.item.description, 
+			Brew.panels.game.width - 1
+			)
+
 	showInventory: ->
-		# dim the screen background
-		@drawDisplayAll({ color_override: [50, 50, 50]})
-		
-		# reset popup div location todo: slide it out
-		pos = $(@my_display.getContainer()).position()
-		
-		$("#id_div_popup").css({
-			position: "absolute",
-			top: pos.top,
-			left: pos.left
-		})
-		
-		@clearPopupDisplay()
+		# draw inventory on dialog screen 
 
 		color_title_hex = ROT.Color.toHex(Brew.colors.inventorymenu.title)
 		color_text_hex = ROT.Color.toHex(Brew.colors.inventorymenu.text)
 		color_hotkey_hex = ROT.Color.toHex(Brew.colors.inventorymenu.hotkey)
 
-		@drawBorders(@my_popup_display, Brew.colors.inventorymenu.border)
-		$("#id_div_popup").show()
-		
-		# draw inventory
 		if @popup.context
 			action_word = if @popup.context == "apply" then "use" else @popup.context
 			context = action_word[0].toUpperCase() + action_word[1..]
@@ -546,19 +608,20 @@ class Brew.UserInterface
 			when "throw" then (i) => false
 			else (i) => true
 
-		@my_popup_display.drawText(1, 1, "%c{#{color_title_hex}}" + inventory_title)
-		y = 2
+		@activateDialogScreen(inventory_title, "Select Item, [Any ] to dismiss", Brew.colors.inventorymenu.border)
+
+		y = Brew.panels.game.y + 2
 		for own key, item of @gamePlayer().inventory.items
 			if not filter_fn(item) then continue
 			
 			# lower_key = String.fromCharCode(key.charCodeAt(0)+32) # i think lowercase loosk better
-			@my_popup_display.draw(1, y, item.inv_key_lower, color_hotkey_hex)
-			@my_popup_display.draw(3, y, item.code, ROT.Color.toHex(item.color))
+			@my_dialog_display.draw(Brew.panels.game.x + 1, y, item.inv_key_lower, color_hotkey_hex)
+			@my_dialog_display.draw(Brew.panels.game.x + 3, y, item.code, ROT.Color.toHex(item.color))
 			
 			text = "%c{#{color_text_hex}}" + @game.getItemNameFromCatalog(item)
 			if item.equip
 				text += " (Equipped)"
-			@my_popup_display.drawText(5, y, text)
+			@my_dialog_display.drawText(Brew.panels.game.x + 5, y, text)
 			y += 1
 		
 		if @popup.context == "apply"
@@ -572,14 +635,14 @@ class Brew.UserInterface
 				## add link to the terrain so the inv menu can pick it up
 				offset_info = Brew.utils.getOffsetInfo(offset_xy)
 				@popup.terrain[offset_info.arrow_keycode] = terrain
-				# @popup.terrain[offset_info.numpad_keycode] = terrain
+				@popup.terrain[offset_info.numpad_keycode] = terrain
 				# @popup.terrain[offset_info.wasd_keycode] = terrain
 				
 				## draw the terrain
-				@my_popup_display.draw(1, y, offset_info.unicode, ROT.Color.toHex(Brew.colors.white))
-				@my_popup_display.draw(3, y, terrain.code, ROT.Color.toHex(terrain.color))
+				@my_dialog_display.draw(Brew.panels.game.x + 1, y, offset_info.unicode, ROT.Color.toHex(Brew.colors.white))
+				@my_dialog_display.draw(Brew.panels.game.x + 3, y, terrain.code, ROT.Color.toHex(terrain.color))
 				text = "%c{#{color_text_hex}}" + terrain.name
-				@my_popup_display.drawText(5, y, text)
+				@my_dialog_display.drawText(Brew.panels.game.x + 5, y, text)
 				y += 1
 			
 		@popup.inventory = @gamePlayer().inventory
@@ -587,18 +650,25 @@ class Brew.UserInterface
 
 	showItemMenu: (item) ->
 		# travel from inventory menu to item menu
-		@clearPopupDisplay()
+
+		@clearDialogDisplay()
 		
 		color_title_hex = ROT.Color.toHex(Brew.colors.itemmenu.title)
 		color_text_hex = ROT.Color.toHex(Brew.colors.itemmenu.text)
 		color_hotkey_hex = ROT.Color.toHex(Brew.colors.itemmenu.hotkey)
 
-		@drawBorders(@my_popup_display, Brew.colors.itemmenu.border)
-		@my_popup_display.drawText(1, 1, "%c{#{color_title_hex}}"+ @game.getItemNameFromCatalog(item))
+		item_title = @game.getItemNameFromCatalog(item)
+		@activateDialogScreen(item_title, "", Brew.colors.itemmenu.border)
 
-		@my_popup_display.drawText(1, 3, "%c{#{color_title_hex}}"+ @game.getItemDescription(item), 38)
-		
-		
+		# draw the description
+		@my_dialog_display.drawText(
+			Brew.panels.game.x + 1, 
+			Brew.panels.game.y + 3,
+			@game.getItemDescription(item), 
+			Brew.panels.game.width - 2
+			)
+
+		# work-around to add some extra text to item descriptions
 		extra_desc = ""
 		if item.group == Brew.groups.WEAPON
 			extra_desc = "Damage: #{item.damage}"
@@ -607,7 +677,13 @@ class Brew.UserInterface
 		else if item.group == Brew.groups.HAT
 			extra_desc = "Hats are just decorative for now"
 
-		@my_popup_display.drawText(1, 8, extra_desc, 38)
+		# draw the 'extra' description
+		@my_dialog_display.drawText(
+			Brew.panels.game.x + 1, 
+			Brew.panels.game.y + 8,
+			extra_desc, 
+			Brew.panels.game.width - 2
+			)
 
 		actions =
 			apply: @game.canApply(item)
@@ -621,7 +697,11 @@ class Brew.UserInterface
 		for own action, can_do_it of actions
 			if can_do_it
 				action_name = if action == "apply" then "use" else action
-				@my_popup_display.drawText(2, 10+i, "%c{#{color_hotkey_hex}}" + action_name[0].toUpperCase() + "%c{#{color_text_hex}}" + action_name[1..])
+				@my_dialog_display.drawText(
+					Brew.panels.game.x + 2, 
+					Brew.panels.game.y + 10 + i, 
+					"%c{#{color_hotkey_hex}}" + action_name[0].toUpperCase() + "%c{#{color_text_hex}}" + action_name[1..]
+					)
 				i += 1
 		
 		@popup.item = item
@@ -793,36 +873,6 @@ class Brew.UserInterface
 
 		@input_handler = "popup_to_dismiss"
 
-
-	showTimeOrbScreen: () ->
-		# use the magical time orb to send abilities / items
-		@clearPopupDisplay()
-		
-		color_title_hex = ROT.Color.toHex(Brew.colors.itemmenu.title)
-		color_text_hex = ROT.Color.toHex(Brew.colors.itemmenu.text)
-		color_hotkey_hex = ROT.Color.toHex(Brew.colors.itemmenu.hotkey)
-		## todo: new menu color for time orb
-		@drawBorders(@my_popup_display, Brew.colors.itemmenu.border)
-
-		$("#id_div_popup").show()
-		
-		@my_popup_display.drawText(2, 1, "The TIME ORB pulses and swirls")
-		@my_popup_display.drawText(2, 2, "mysteriously.")
-		@my_popup_display.drawText(2, 4, "You can use it to help your partner")
-		@my_popup_display.drawText(2, 5, "across the splintered reality within")
-		@my_popup_display.drawText(2, 6, "the Caves:")
-
-		row_start = 8
-		@my_popup_display.drawText(2, row_start, "- Incoming -")
-		@my_popup_display.drawText(2, row_start+1, "(1) Fireball")
-
-		row_start += 2
-		@my_popup_display.drawText(2, row_start, "- Send -")
-		@my_popup_display.drawText(2, row_start+1, "(!) Send Item")
-		@my_popup_display.drawText(2, row_start+2, "(@) Send Monster")
-
-		@input_handler = "timeorb"
-
 	showAbilities: () ->
 		# dim the screen background
 		@drawDisplayAll({ color_override: [50, 50, 50]})
@@ -860,6 +910,33 @@ class Brew.UserInterface
 
 		@input_handler = "abilities"
 
+	showTargeting: (ability, keycode) ->
+		@popup.context = "target"
+		@popup.ability = ability
+		@popup.keycode = keycode
+
+		first_target = @guessFirstTarget(ability)
+		if not first_target?
+			@drawTextOnPanel("footer", 0, 0, @appendBlanksToString("No targets in range", Brew.panels.footer.width))
+			return false
+
+		@updateAndDrawTargeting(first_target.coordinates)
+
+		@drawTextOnPanel("footer", 0, 0, @appendBlanksToString("Targeting #{ability}", Brew.panels.footer.width))
+		@input_handler = "targeting"
+
+		return true
+
+	guessFirstTarget: (ability) ->
+		# guess a target based on where-ever the player is
+		player = @gamePlayer()
+		enemies_in_view = (m for m in @gameLevel().getMonsters() when player.hasKnowledgeOf(m))
+		potential_targets = (m for m in enemies_in_view when @game.abil.checkUseAt(ability, m.coordinates))
+		if potential_targets.length > 0
+			return potential_targets[0]
+		else
+			return null
+
 	# ------------------------------------------------------------
 	# keyboard input
 	# ------------------------------------------------------------
@@ -885,7 +962,27 @@ class Brew.UserInterface
 		else if keycode in Brew.keymap.MOVE_DOWN
 			offset_xy = Brew.directions.s # new Coordinate(0, 1)
 			@game.movePlayer(offset_xy)
-			
+
+		# Diagonal UP LEFT
+		else if keycode in Brew.keymap.MOVE_UPLEFT
+			offset_xy = Brew.directions.nw 
+			@game.movePlayer(offset_xy)
+
+		# Diagonal UP RIGHT
+		else if keycode in Brew.keymap.MOVE_UPRIGHT
+			offset_xy = Brew.directions.ne 
+			@game.movePlayer(offset_xy)
+
+		# Diagonal DOWN LEFT
+		else if keycode in Brew.keymap.MOVE_DOWNLEFT
+			offset_xy = Brew.directions.sw
+			@game.movePlayer(offset_xy)
+
+		# Diagonal DOWN RIGHT
+		else if keycode in Brew.keymap.MOVE_DOWNRIGHT
+			offset_xy = Brew.directions.se
+			@game.movePlayer(offset_xy)
+
 		# DO ACTION: space, NUMPAD 0
 		else if keycode in Brew.keymap.GENERIC_ACTION
 			@game.doPlayerAction()
@@ -984,12 +1081,6 @@ class Brew.UserInterface
 				@game.doPlayerGive(item)
 			else if @popup.context == "apply"
 				@game.doPlayerApply(item, inv_key)
-				# if item.group == Brew.groups.TIMEORB
-				# 	@popup = {}
-				# 	@showTimeOrbScreen()
-				# 	return
-				# else
-				# 	@game.doPlayerApply(item, inv_key)
 
 			else if @popup.context == "throw"
 				@promptThrow(item, inv_key)
@@ -998,7 +1089,7 @@ class Brew.UserInterface
 				return true
 		
 		# if we had a context, go back to the game
-		$("#id_div_popup").hide()
+		@clearDialogDisplay()
 		@drawDisplayAll()
 		@popup = {}
 		@input_handler = null
@@ -1009,13 +1100,6 @@ class Brew.UserInterface
 		if keycode == 85 # Use
 			if @popup.actions.apply
 				@game.doPlayerApply(@popup.item, keycode)
-				# if @popup.item.group == Brew.groups.TIMEORB
-				# 	@popup = {}
-				# 	@showTimeOrbScreen()
-				# 	return
-
-				# else
-				# 	@game.doPlayerApply(@popup.item, keycode)
 			else
 				console.log("You can't apply that")
 			
@@ -1046,7 +1130,7 @@ class Brew.UserInterface
 				@promptThrow(@popup.item)
 				
 			else
-				console.log("you cant THROW THAT")
+				console.log("you cant T-HROW that")
 		
 		# remove
 		else if keycode == 82
@@ -1061,7 +1145,7 @@ class Brew.UserInterface
 			return true
 		
 		# if we did something, go back to the game
-		$("#id_div_popup").hide()
+		@clearDialogDisplay()
 		@drawDisplayAll()
 		@popup = {}
 		@input_handler = null
@@ -1070,7 +1154,7 @@ class Brew.UserInterface
 		# space : dismiss
 		if keycode in [32, 13, 27]
 			# if we did something, go back to the game
-			$("#id_div_popup").hide()
+			@clearDialogDisplay()
 			@drawDisplayAll()
 			@popup = {}
 			@input_handler = null
@@ -1122,14 +1206,40 @@ class Brew.UserInterface
 				@popup.text += letter
 			@showChat()
 
-	inputTimeOrb: (keycode, shiftKey) ->
-		if keycode in [32, 13, 27]
-			# if we did something, go back to the game
-			$("#id_div_popup").hide()
-			@drawDisplayAll()
-			@popup = {}
-			@input_handler = null
+	inputTargeting: (keycode, shift_key) ->
+		popup_xy = clone(@popup.xy)
 
+		# LEFT: left arrow + a
+		if keycode in Brew.keymap.MOVE_LEFT
+			offset_xy = Brew.directions.w # new Coordinate(-1, 0)
+			target_xy = popup_xy.add(offset_xy)
+			@updateAndDrawTargeting(target_xy)
+
+		# RIGHT: right arrow + d
+		else if keycode in Brew.keymap.MOVE_RIGHT
+			offset_xy = Brew.directions.e # new Coordinate(1, 0)
+			target_xy = popup_xy.add(offset_xy)
+			@updateAndDrawTargeting(target_xy)
+
+		# UP: up arrow + w
+		else if keycode in Brew.keymap.MOVE_UP
+			offset_xy = Brew.directions.n # new Coordinate(0, -1)
+			target_xy = popup_xy.add(offset_xy)
+			@updateAndDrawTargeting(target_xy)
+
+		# DOWN: down arrow + s
+		else if keycode in Brew.keymap.MOVE_DOWN
+			offset_xy = Brew.directions.s # new Coordinate(0, 1)
+			target_xy = popup_xy.add(offset_xy)
+			@updateAndDrawTargeting(target_xy)
+
+		# DO ACTION: space, NUMPAD 0
+		else if keycode in Brew.keymap.GENERIC_ACTION or (@popup.ability? and keycode == @popup.keycode)
+			@input_handler = ""
+			@highlights = {}
+			@drawDisplayAll()
+			@game.doTargetingAt(@popup.ability, @popup.xy)
+			@popup = {}
 
 
 	# ------------------------------------------------------------
@@ -1137,7 +1247,7 @@ class Brew.UserInterface
 	# ------------------------------------------------------------
 
 	mouseDown: (grid_obj_xy, button, shift_key) ->
-		map_xy = @my_view.add(grid_obj_xy)
+		map_xy = @my_view.add(grid_obj_xy).subtract(@panel_offsets["game"])
 		player = @gamePlayer()
 
 		# check if there is a monster we want to shoot at
@@ -1160,62 +1270,45 @@ class Brew.UserInterface
 		@game.lastKeypress = new Date()
 
 	mouseLongClick: (grid_obj_xy, button, shift_key) ->
-		map_xy = @my_view.add(grid_obj_xy)
+		map_xy = @my_view.add(grid_obj_xy).subtract(@panel_offsets["game"])
 		m = @gameLevel().getMonsterAt(map_xy)
 		if m?
 			@popup.monster = m
 			@showMonsterInfo()
 
 	mouseGainFocus: (grid_obj_xy) ->
-		grid_manager.drawBorderAt(grid_obj_xy, 'white')
 		grid_xy = new Coordinate(grid_obj_xy.x, grid_obj_xy.y)
-		map_xy = @my_view.add(grid_xy)
-		@drawFooter(map_xy)
 
-		if @game.my_player.active_ability?
-			if @game.abil.checkUseAt(@game.my_player.active_ability, map_xy)
-				# draw[2] = ROT.Color.add(draw[2], [0, 50, 0])
-				# grid_manager.drawBorderAt(grid_obj_xy, 'green')
-				@highlights[map_xy.toKey()] = Brew.colors.green
-				@drawMapAt(map_xy)
+		# ignore any mouse movement outside main game screen -- for now
+		if @getPanelAt(grid_xy) != "game"
+			return
+
+		# handle special case for targetting mode
+		if @popup.context == "target"
+			@updateAndDrawTargeting(@screenToMap(grid_xy))
+
+		# normal case - follow mouse around with a border
+		else
+			grid_manager.drawBorderAt(grid_obj_xy, 'white')
+			
+			map_xy = @screenToMap(grid_xy)
+			@drawFooterPanel(map_xy)
+
+			if @game.my_player.active_ability?
+				if @game.abil.checkUseAt(@game.my_player.active_ability, map_xy)
+					# draw[2] = ROT.Color.add(draw[2], [0, 50, 0])
+					# grid_manager.drawBorderAt(grid_obj_xy, 'green')
+					@highlights[map_xy.toKey()] = Brew.colors.green
+					@drawMapAt(map_xy)
 		
 	mouseLeaveFocus: (grid_obj_xy) ->
 		grid_xy = new Coordinate(grid_obj_xy.x, grid_obj_xy.y)
-		map_xy = @my_view.add(grid_xy)
-		delete @highlights[grid_xy.toKey()]
-		@drawDisplayAt(grid_xy)
+		if @getPanelAt(grid_xy) != "game"
+			return
 
-	# ------------------------------------------------------------
-	# PAIR MOUSE input
-	# ------------------------------------------------------------
-
-	mouseDownPair: (grid_obj_xy, button, shift_key) ->
-		if not @game.is_paired
-			return false
-
-		pair_map_xy = @game.pair.view.xy.add(grid_obj_xy)
-		@game.doPlayerPairClick(pair_map_xy)
-		return true
-
-	mouseGainFocusPair: (grid_obj_xy) ->
-		if not @game.is_paired
-			return false
-
-		pair_grid_manager.drawBorderAt(grid_obj_xy, 'white')
-		pair_map_xy = @game.pair.view.xy.add(grid_obj_xy)
-
-		if @game.my_player.active_ability?
-			if @game.abil.checkPairUseAt(@game.my_player.active_ability, pair_map_xy)
-				# pair_grid_manager.drawBorderAt(grid_obj_xy, 'green')
-				drawing = @displayat[pair_map_xy.toKey()]
-				@my_pair_display.draw(grid_obj_xy.x, grid_obj_xy.y, drawing[0], drawing[1], "green")
-		
-	mouseLeaveFocusPair: (grid_obj_xy) ->
-		if not @game.is_paired
-			return false
-
-		grid_xy = new Coordinate(grid_obj_xy.x, grid_obj_xy.y)
-		@updatePairDisplayAt(grid_xy)
+		map_xy = @screenToMap(grid_xy)
+		delete @highlights[map_xy.toKey()]
+		@drawMapAt(map_xy)
 
 	# ------------------------------------------------------------
 	# on-screen DIALOG
@@ -1318,7 +1411,8 @@ class Brew.UserInterface
 
 	debugAtCoords: () ->
 		grid_obj_xy = grid_manager.getLastVisitGrid()
-		map_xy = coordFromObject(grid_obj_xy)
+		map_xy = @my_view.add(grid_obj_xy).subtract(@panel_offsets["game"])
+		# map_xy = coordFromObject(grid_obj_xy)
 		console.log("grid xy", grid_obj_xy)
 		console.log("map xy", map_xy)
 		key = map_xy.toKey()

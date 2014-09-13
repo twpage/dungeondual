@@ -2,6 +2,7 @@ window.Brew.feature_def =
 	BLOOD:
 		name: "Blood"
 		color: Brew.colors.blood
+		# bgcolor: Brew.colors.blood
 		intensity: 0.5
 		
 	BRAINS:

@@ -16,10 +16,10 @@
     t = new Brew.Terrain(terrain_info);
     t.def_id = def_id;
     if (t.color_randomize != null) {
-      t.color = ROT.Color.randomize(t.color, t.color_randomize);
+      t.color = Brew.utils.colorRandomize(t.color, t.color_randomize);
     }
     if (t.bgcolor_randomize != null) {
-      t.bgcolor = ROT.Color.randomize(t.bgcolor, t.bgcolor_randomize);
+      t.bgcolor = Brew.utils.colorRandomize(t.bgcolor, t.bgcolor_randomize);
     }
     return t;
   };

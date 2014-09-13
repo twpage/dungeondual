@@ -4,7 +4,8 @@
 	<!-- <link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css' /> -->
 	{% load staticfiles %}
 
-	<link href="{% static "ddual/css/consolas.css" %}" rel="stylesheet" type="text/css" />
+	<!-- <link href="{% static "ddual/css/consolas.css" %}" rel="stylesheet" type="text/css" /> -->
+	<link href="{% static "ddual/css/dejavusansmono.css" %}" rel="stylesheet" type="text/css" />
 	<link href="{% static "ddual/css/robocaptain.css" %}" rel="stylesheet" type="text/css" />
 
     <script src="{% static "ddual/js/lib/jquery.min.js" %}"></script>
@@ -53,8 +54,9 @@
 		var grid_manager;
 		var audio_assets;
 		var audio_buffers;
-		var spacing = 1.125;
-		var font_size = 18;
+		var spacing = 1.0;
+		var font_size = 16;
+		var font_family = "DejaVuSansMono";
 		var game_seed = "{{ game.gamekey }}";
 		var player_name = "{{ user.username }}";
 
@@ -65,6 +67,8 @@
         			e.preventDefault();
     			}
 			});
+
+			// startGame(Brew.hero_types.warrior);
 
 			// window.onbeforeunload = function() {
    			//     return "Dude, are you sure you want to leave? Think of the kittens!";
@@ -86,77 +90,39 @@
         	$("#id_pre_intro").remove();
 
 			var display = new ROT.Display({
-				width: Brew.config.screen_tiles_width,
-				height: Brew.config.screen_tiles_height,
+				width: Brew.panels.full.width,
+				height: Brew.panels.full.height,
 				fontSize: font_size,
-				fontFamily: "Consolas",
-				spacing: spacing
+				fontFamily: font_family,
+				spacing: spacing,
+				bg: ROT.Color.toHex(Brew.colors.black)
 			});
 			
-			var hud_display = new ROT.Display({
-				width: Brew.config.hud_tiles_width,
-				height: Brew.config.hud_tiles_height,
-				fontSize: font_size,
-				fontFamily: "Consolas",
-				spacing: spacing,
-				bg: ROT.Color.toHex(Brew.colors.black)
-			});
-
-			var footer_display = new ROT.Display({
-				width: Brew.config.footer_tiles_width,
-				height: Brew.config.footer_tiles_height,
-				fontSize: font_size,
-				fontFamily: "Consolas",
-				spacing: spacing,
-				bg: ROT.Color.toHex(Brew.colors.black)
-			});
-
 			var layer_display = new ROT.Display({
-				width: Brew.config.screen_tiles_width,
-				height: Brew.config.screen_tiles_height,
+				width: Brew.panels.full.width,
+				height: Brew.panels.full.height,
 				fontSize: font_size,
-				fontFamily: "Consolas",
+				fontFamily: font_family,
 				spacing: spacing,
 				bg: "transparent"
 			});
 
 			var dialog_display = new ROT.Display({
-				width: Brew.config.screen_tiles_width,
-				height: Brew.config.screen_tiles_height,
+				width: Brew.panels.full.width,
+				height: Brew.panels.full.height,
 				fontSize: font_size,
-				fontFamily: "Consolas",
+				fontFamily: font_family,
 				spacing: spacing,
 				bg: "transparent"
-			});
-
-			var popup_display = new ROT.Display({
-				width: Brew.config.screen_tiles_width,
-				height: Brew.config.screen_tiles_height,
-				fontSize: font_size,
-				fontFamily: "Consolas",
-				spacing: spacing,
-				bg: "transparent"
-			});
-
-			var pair_display = new ROT.Display({
-				width: Brew.config.screen_tiles_width,
-				height: Brew.config.screen_tiles_height,
-				fontSize: font_size,
-				fontFamily: "Consolas",
-				spacing: spacing,
-				bg: ROT.Color.toHex(Brew.colors.pair_shade)
 			});
 
 			// set up main ROT.js display
 			$("#id_div_game").append(display.getContainer());
-			var tile_width = display.getContainer().width / Brew.config.screen_tiles_width;
-			var tile_height = display.getContainer().height / Brew.config.screen_tiles_height;
-			
-			$("#id_div_hud").append(hud_display.getContainer());
-			$("#id_div_footer").append(footer_display.getContainer());
+			var tile_width = display.getContainer().width / Brew.panels.full.width;
+			var tile_height = display.getContainer().height / Brew.panels.full.height;
 
 			// setup grid mangler -- feed off layer display because its on top?
-			grid_manager = gridmangler(layer_display.getContainer(), tile_width, tile_height);
+			grid_manager = gridmangler(dialog_display.getContainer(), tile_width, tile_height);
 			grid_manager.addGridEvent("gainfocus", 
 				function (grid_xy) {
 					brew_game.ui.mouseGainFocus(grid_xy);
@@ -177,32 +143,11 @@
 					brew_game.ui.mouseLongClick(grid_xy, button, shift_key);
 				}
 			);
-			// PAIR grid mangler
-			pair_grid_manager = gridmangler(pair_display.getContainer(), tile_width, tile_height);
-			pair_grid_manager.addGridEvent("gainfocus", 
-				function (grid_xy) {
-					brew_game.ui.mouseGainFocusPair(grid_xy);
-				}
-			);
-			pair_grid_manager.addGridEvent("leavefocus", 
-				function (grid_xy) {
-					brew_game.ui.mouseLeaveFocusPair(grid_xy);
-				}
-			);
-			pair_grid_manager.addGridEvent("mousedown", 
-				function (grid_xy, button, shift_key) {
-					brew_game.ui.mouseDownPair(grid_xy, button, shift_key);
-				}
-			);
 
 			var display_info = {
 				"game": display,
 				"layer": layer_display,
-				"popup": popup_display,
 				"dialog": dialog_display,
-				"pair": pair_display,
-				"hud": hud_display,
-				"footer": footer_display
 			}
 			brew_game = new Brew.Game(display_info, {{ game.id }}, {{ user.id }}, game_seed);
 			brew_game.game_id = {{ game.id }};
@@ -219,14 +164,8 @@
 			$("#id_div_dialog").append(dialog_display.getContainer());
 			$("#id_div_dialog").hide()
 
-			$("#id_div_popup").attr("width", display.getContainer().width);
-			$("#id_div_popup").attr("height", display.getContainer().height);
-			$("#id_div_popup").append(popup_display.getContainer());
-			$("#id_div_popup").hide()
-
 			// disable double-click to select
 			display.getContainer().onselectstart = function () { return false; }
-			popup_display.getContainer().onselectstart = function () { return false; }
 			layer_display.getContainer().onselectstart = function () { return false; }
 			dialog_display.getContainer().onselectstart = function () { return false; }
 			
@@ -237,7 +176,6 @@
 			brew_game.debugDropdownMenu();
 			
         } // end startGame()
-		
 		
 	</script>
 </head>
@@ -293,22 +231,15 @@
 	<table id="id_table_main" >
 		<tr>
 			<td>
-				<div id="id_div_hud"></div>
-			</td>
-			<td>
-				<!-- pair hud?? -->
-			</td>
-		</tr>
-		<tr>
-			<td>
 				<div id="id_div_content">
 					<div id="id_div_game"></div>
-					<div id="id_div_dialog"></div>
 					<div id="id_div_layer"></div>
-					<div id="id_div_popup"></div>
+					<div id="id_div_dialog"></div>
+
 				</div>
 			</td>
 		</tr>
+
 	</table>
 	<!-- <select id="id_select_debug"/> -->
 	<div id="id_debug_footer"></div>

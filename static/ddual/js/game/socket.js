@@ -179,7 +179,6 @@
     };
 
     Socket.prototype.sendMessage = function(msg) {
-      mySocket.send(JSON.stringify(msg));
       return true;
     };
 

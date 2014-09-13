@@ -149,7 +149,31 @@ window.Brew.utils =
 			Math.min(rgb_one[1], rgb_two[1]),
 			Math.min(rgb_one[2], rgb_two[2])
 		]
-		
+	
+	# colors
+	colorRandomize: (rgb_color, maxmin_spread) ->
+		# randomize a RGB color array by a random amount within a +/- spread
+		# rot.js randomize uses standard deviations
+
+		# scale spread n by (2*n)+1, then randomize, then subtract n, to get distribution of -n to +n
+		random_spread = [
+			Math.floor(ROT.RNG.getUniform()*((maxmin_spread[0]*2)+1)) - maxmin_spread[0],
+			Math.floor(ROT.RNG.getUniform()*((maxmin_spread[1]*2)+1)) - maxmin_spread[1],
+			Math.floor(ROT.RNG.getUniform()*((maxmin_spread[2]*2)+1)) - maxmin_spread[2]
+		]
+
+		new_color = [
+			Math.max(0, Math.min(255, rgb_color[0] + random_spread[0])),
+			Math.max(0, Math.min(255, rgb_color[1] + random_spread[1])),
+			Math.max(0, Math.min(255, rgb_color[2] + random_spread[2]))
+		]
+
+		# if rgb_color[0] == 51
+		# 	console.log(rgb_color, maxmin_spread, random_spread, new_color)
+
+		return new_color
+
+
 	# math / random
 	dist2d: (xy_a, xy_b) ->
 		return @dist2d_xy(xy_a.x, xy_a.y, xy_b.x, xy_b.y)
@@ -305,15 +329,20 @@ window.Brew.utils =
 				
 				if dist > max_dist
 					splatter_level = 0
+				
 				else
-					splatter_level = (max_dist - dist) * ROT.RNG.getUniform()
-					# intensity = splatter_level / max_dist
-					# if splatter_level > 0.25
-					#	splat[x_y_Key(x, y)] = intensity
+					# always include center point
+					if (x == center_xy.x and y == center_xy.y)
+						rando = 0.99
+						
+					else 
+						rando = ROT.RNG.getUniform()
+
+					splatter_level = (max_dist - dist) * rando
 					volume = Math.floor(splatter_level) / (max_dist - 1)
 					if volume > 0
 						splat[keyFromXY(x, y)] = volume
-		
+
 		return splat
 		
 	floodFillByKey: (key, passable_key_lst, visited_lst, callback) ->

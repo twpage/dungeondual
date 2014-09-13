@@ -140,7 +140,7 @@
     __extends(Terrain, _super);
 
     function Terrain(terrain_info) {
-      var param, value, _ref, _ref1, _ref2, _ref3, _ref4;
+      var param, value, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
       Terrain.__super__.constructor.call(this, "terrain");
       this.group = (_ref = terrain_info.group) != null ? _ref : terrain_info.name;
       this.bgcolor = (_ref1 = terrain_info.bgcolor) != null ? _ref1 : Brew.colors.black;
@@ -148,6 +148,7 @@
       this.blocks_walking = (_ref3 = terrain_info.blocks_walking) != null ? _ref3 : false;
       this.blocks_flying = (_ref4 = terrain_info.blocks_flying) != null ? _ref4 : false;
       this.code = typeIsArray(terrain_info.code) ? terrain_info.code[Math.floor(ROT.RNG.getUniform() * terrain_info.code.length)] : terrain_info.code;
+      this.show_gore = (_ref5 = terrain_info.show_gore) != null ? _ref5 : false;
       for (param in terrain_info) {
         if (!__hasProp.call(terrain_info, param)) continue;
         value = terrain_info[param];
@@ -203,6 +204,20 @@
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           i = _ref[_i];
           _results.push(Math.floor(this.color[i] * this.intensity));
+        }
+        return _results;
+      }).call(this);
+    };
+
+    Feature.prototype.getBackgroundColor = function() {
+      var i;
+      return (function() {
+        var _i, _len, _ref, _results;
+        _ref = [0, 1, 2];
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          i = _ref[_i];
+          _results.push(Math.floor(this.bgcolor[i] * this.intensity));
         }
         return _results;
       }).call(this);
@@ -509,23 +524,24 @@
     __extends(Monster, _super);
 
     function Monster(monster_info) {
-      var param, value, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
+      var param, value, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8, _ref9;
       Monster.__super__.constructor.call(this, "monster");
       this.fov = {};
       this.knowledge = [];
       this.memory = {};
       this.pathmaps = {};
+      this.sight_radius = (_ref = monster_info.sight_radius) != null ? _ref : 9;
       this.inventory = new Brew.Inventory();
-      this.status = (_ref = monster_info.status) != null ? _ref : Brew.monster_status.SLEEP;
-      this.rank = (_ref1 = monster_info.rank) != null ? _ref1 : 0;
-      this.damage = (_ref2 = monster_info.damage) != null ? _ref2 : 1;
-      this.horde = (_ref3 = monster_info.horde) != null ? _ref3 : null;
-      this.attack_range = (_ref4 = monster_info.attack_range) != null ? _ref4 : 1;
-      this.agent = (_ref5 = monster_info.agent) != null ? _ref5 : false;
+      this.status = (_ref1 = monster_info.status) != null ? _ref1 : Brew.monster_status.SLEEP;
+      this.rank = (_ref2 = monster_info.rank) != null ? _ref2 : 0;
+      this.damage = (_ref3 = monster_info.damage) != null ? _ref3 : 1;
+      this.horde = (_ref4 = monster_info.horde) != null ? _ref4 : null;
+      this.attack_range = (_ref5 = monster_info.attack_range) != null ? _ref5 : 1;
+      this.agent = (_ref6 = monster_info.agent) != null ? _ref6 : false;
       this.abilities = [];
       this.active_ability = null;
-      this.group = (_ref6 = monster_info.group) != null ? _ref6 : monster_info.name;
-      this.bgcolor = (_ref7 = monster_info.bgcolor) != null ? _ref7 : [0, 0, 0];
+      this.group = (_ref7 = monster_info.group) != null ? _ref7 : monster_info.name;
+      this.bgcolor = (_ref8 = monster_info.bgcolor) != null ? _ref8 : [0, 0, 0];
       for (param in monster_info) {
         if (!__hasProp.call(monster_info, param)) continue;
         value = monster_info[param];
@@ -534,7 +550,7 @@
         }
         this[param] = value;
       }
-      this.flags = (_ref8 = monster_info.flags) != null ? _ref8 : this.flags;
+      this.flags = (_ref9 = monster_info.flags) != null ? _ref9 : this.flags;
     }
 
     Monster.prototype.getAbilities = function() {
@@ -660,7 +676,7 @@
         };
       })(this);
       rot_fov = new ROT.FOV.PreciseShadowcasting(fn_allow_vision);
-      rot_fov.compute(this.coordinates.x, this.coordinates.y, 9, fn_update_fov);
+      rot_fov.compute(this.coordinates.x, this.coordinates.y, this.sight_radius, fn_update_fov);
       return true;
     };
 
@@ -731,7 +747,7 @@
           if (x < 0 || x >= _this.width || y < 0 || y >= _this.height) {
             return false;
           } else {
-            return !_this.checkBlocksVision(new Coordinate(x, y));
+            return !_this.checkBlocksLight(new Coordinate(x, y));
           }
         };
       })(this);
@@ -745,7 +761,7 @@
           return 0;
         };
       })(this);
-      light_range = Math.max(this.width, this.height);
+      light_range = Math.floor(Math.min(this.width, this.height) / 2);
       rot_fov = new ROT.FOV.PreciseShadowcasting(fn_allow_vision);
       lighting = new ROT.Lighting(fn_reflectivity, {
         range: light_range,
@@ -773,6 +789,19 @@
         debugger;
       }
       return t.blocks_vision;
+    };
+
+    Level.prototype.checkBlocksLight = function(xy) {
+      var t;
+      t = this.getTerrainAt(xy);
+      if (t == null) {
+        debugger;
+      }
+      if (t.light_source != null) {
+        return false;
+      } else {
+        return t.blocks_vision;
+      }
     };
 
     Level.prototype.setTerrainAt = function(xy, terrain) {

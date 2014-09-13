@@ -9,14 +9,20 @@
       this.my_display = display_info["game"];
       this.my_layer_display = display_info["layer"];
       this.my_dialog_display = display_info["dialog"];
-      this.my_popup_display = display_info["popup"];
-      this.my_tile_width = this.my_display.getContainer().width / Brew.config.screen_tiles_width;
-      this.my_tile_height = this.my_display.getContainer().height / Brew.config.screen_tiles_height;
+      this.my_tile_width = this.my_display.getContainer().width / Brew.panels.full.width;
+      this.my_tile_height = this.my_display.getContainer().height / Brew.panels.full.height;
       this.my_view = new Coordinate(0, 0);
       this.input_handler = null;
       this.popup = {};
       this.displayat = {};
       this.highlights = {};
+      this.panel_offsets = {
+        "game": new Coordinate(Brew.panels.game.x, Brew.panels.game.y),
+        "messages": new Coordinate(Brew.panels.messages.x, Brew.panels.messages.y),
+        "footer": new Coordinate(Brew.panels.footer.x, Brew.panels.footer.y),
+        "playerinfo": new Coordinate(Brew.panels.playerinfo.x, Brew.panels.playerinfo.y),
+        "viewinfo": new Coordinate(Brew.panels.viewinfo.x, Brew.panels.viewinfo.y)
+      };
       this.debug = {
         fov: {},
         pathmaps: {}
@@ -60,33 +66,142 @@
           return this.inputDied(ui_keycode, shift_key);
         } else if (this.input_handler === "victory") {
           return this.inputVictory(ui_keycode, shift_key);
+        } else if (this.input_handler === "targeting") {
+          return this.inputTargeting(ui_keycode, shift_key);
         }
       }
     };
 
+    UserInterface.prototype.screenToMap = function(screen_xy) {
+      var map_xy;
+      if (this.getPanelAt(screen_xy) !== "game") {
+        return null;
+      } else {
+        map_xy = screen_xy.subtract(this.panel_offsets["game"]).add(this.my_view);
+        return map_xy;
+      }
+    };
+
+    UserInterface.prototype.mapToScreen = function(map_xy) {
+      var screen_xy;
+      screen_xy = map_xy.subtract(this.my_view).add(this.panel_offsets["game"]);
+      if (this.getPanelAt(screen_xy) !== "game") {
+        return null;
+      } else {
+        return screen_xy;
+      }
+    };
+
+    UserInterface.prototype.appendBlanksToString = function(text, max_length) {
+      var black_hex, i, num_spaces, spaces;
+      black_hex = ROT.Color.toHex(Brew.colors.black);
+      num_spaces = max_length - text.length;
+      spaces = ((function() {
+        var _i, _results;
+        _results = [];
+        for (i = _i = 0; 0 <= num_spaces ? _i <= num_spaces : _i >= num_spaces; i = 0 <= num_spaces ? ++_i : --_i) {
+          _results.push("_");
+        }
+        return _results;
+      })()).join("");
+      return text + ("%c{" + black_hex + "}" + spaces);
+    };
+
+    UserInterface.prototype.drawDisplayAll = function(options) {
+      this.clearLayerDisplay();
+      this.drawGamePanel(options);
+      this.drawPlayerInfoPanel();
+      return this.drawMessagesPanel();
+    };
+
+    UserInterface.prototype.drawOnPanel = function(panel_name, x, y, code, forecolor, bgcolor) {
+      var panel_x, panel_y;
+      panel_x = this.panel_offsets[panel_name].x + x;
+      panel_y = this.panel_offsets[panel_name].y + y;
+      this.my_display.draw(panel_x, panel_y, code, forecolor, bgcolor);
+      return true;
+    };
+
+    UserInterface.prototype.drawTextOnPanel = function(panel_name, x, y, text, max_width) {
+      var panel_x, panel_y;
+      panel_x = this.panel_offsets[panel_name].x + x;
+      panel_y = this.panel_offsets[panel_name].y + y;
+      this.my_display.drawText(panel_x, panel_y, text, max_width);
+      return true;
+    };
+
+    UserInterface.prototype.drawBarOnPanel = function(panel_name, start_x, start_y, max_tiles, current_amount, max_amount, full_color) {
+      var black_hex, fadecolor, i, num_bars, raw_num_bars, remainder, tile, violet_rgb, _i, _ref;
+      black_hex = ROT.Color.toHex(Brew.colors.black);
+      raw_num_bars = Math.min(1.0, current_amount / max_amount) * max_tiles;
+      num_bars = Math.ceil(raw_num_bars);
+      remainder = num_bars - raw_num_bars;
+      tile = null;
+      for (i = _i = 0, _ref = max_tiles - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
+        if (i === num_bars - 1) {
+          if (remainder < 0.25) {
+            fadecolor = full_color;
+          } else if (remainder < 0.5) {
+            fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.25);
+          } else if (remainder < 0.75) {
+            fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.5);
+          } else {
+            fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.75);
+          }
+          this.drawOnPanel(panel_name, start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color));
+        } else if (i < num_bars) {
+          this.drawOnPanel(panel_name, start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color));
+        } else {
+          this.drawOnPanel(panel_name, start_x + i, start_y, " ", "white", ROT.Color.toHex(Brew.colors.normal));
+        }
+      }
+      violet_rgb = ROT.Color.toHex(full_color);
+      return this.drawTextOnPanel(panel_name, start_x + max_tiles + 1, start_y, "%c{" + violet_rgb + "}" + current_amount + "%c{" + black_hex + "}_");
+    };
+
+    UserInterface.prototype.getPanelAt = function(xy) {
+      var panel_name;
+      panel_name = "dunno";
+      if (xy.x < Brew.panels.playerinfo.x) {
+        if (xy.y < Brew.panels.game.y) {
+          panel_name = "messages";
+        } else if (xy.y < Brew.panels.footer.y) {
+          panel_name = "game";
+        } else {
+          panel_name = "footer";
+        }
+      } else {
+        if (xy.x < Brew.panels.playerinfo.x) {
+          panel_name = "playerinfo";
+        } else {
+          panel_name = "viewinfo";
+        }
+      }
+      return panel_name;
+    };
+
     UserInterface.prototype.centerViewOnPlayer = function() {
       var half_x, half_y, view_x, view_y;
-      if (this.gameLevel().width <= this.my_display.width && this.gameLevel().height <= this.my_display.height) {
+      if (this.gameLevel().width <= Brew.panels.game.width && this.gameLevel().height <= Brew.panels.game.height) {
         return;
       }
       half_x = this.my_display.getOptions().width / 2;
       half_y = this.my_display.getOptions().height / 2;
-      view_x = Math.min(Math.max(0, this.gamePlayer().coordinates.x - half_x), this.gameLevel().width - this.my_display.getOptions().width);
-      view_y = Math.min(Math.max(0, this.gamePlayer().coordinates.y - half_y), this.gameLevel().height - this.my_display.getOptions().height);
+      view_x = Math.min(Math.max(0, this.gamePlayer().coordinates.x - half_x), this.gameLevel().width - Brew.panels.game.width);
+      view_y = Math.min(Math.max(0, this.gamePlayer().coordinates.y - half_y), this.gameLevel().height - Brew.panels.game.height);
       return this.my_view = new Coordinate(view_x, view_y);
     };
 
-    UserInterface.prototype.drawDisplayAll = function(options) {
-      var col_x, row_y, screen_xy, _i, _ref, _results;
-      this.clearLayerDisplay();
+    UserInterface.prototype.drawGamePanel = function(options) {
+      var col_x, row_y, screen_xy, _i, _ref, _ref1, _results;
       _results = [];
-      for (row_y = _i = 0, _ref = this.my_display.getOptions().height - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; row_y = 0 <= _ref ? ++_i : --_i) {
+      for (row_y = _i = _ref = Brew.panels.game.y, _ref1 = Brew.panels.game.y + Brew.panels.game.height - 1; _ref <= _ref1 ? _i <= _ref1 : _i >= _ref1; row_y = _ref <= _ref1 ? ++_i : --_i) {
         _results.push((function() {
-          var _j, _ref1, _results1;
+          var _j, _ref2, _ref3, _results1;
           _results1 = [];
-          for (col_x = _j = 0, _ref1 = this.my_display.getOptions().width - 1; 0 <= _ref1 ? _j <= _ref1 : _j >= _ref1; col_x = 0 <= _ref1 ? ++_j : --_j) {
+          for (col_x = _j = _ref2 = Brew.panels.game.x, _ref3 = Brew.panels.game.x + Brew.panels.game.width - 1; _ref2 <= _ref3 ? _j <= _ref3 : _j >= _ref3; col_x = _ref2 <= _ref3 ? ++_j : --_j) {
             screen_xy = new Coordinate(col_x, row_y);
-            _results1.push(this.drawDisplayAt(screen_xy, null, options));
+            _results1.push(this.drawGamePanelAt(screen_xy, null, options));
           }
           return _results1;
         }).call(this));
@@ -96,26 +211,30 @@
 
     UserInterface.prototype.drawMapAt = function(map_xy, options) {
       var screen_xy;
-      screen_xy = map_xy.subtract(this.my_view);
-      return this.drawDisplayAt(screen_xy, map_xy, options);
+      screen_xy = this.mapToScreen(map_xy);
+      if (screen_xy != null) {
+        return this.drawGamePanelAt(screen_xy, null, options);
+      }
     };
 
-    UserInterface.prototype.drawDisplayAt = function(xy, map_xy, options) {
-      var c, can_view_and_lit, color_mod, draw, feature, fromMemory, h, in_view, is_lit, item, lighted, map_title, map_val, memory, mob_color, monster, over_saturate, overhead, pathmap, prelighting_draw, r, terrain, _ref, _ref1, _ref2;
+    UserInterface.prototype.drawGamePanelAt = function(xy, map_xy, options) {
+      var c, can_view_and_lit, color_mod, draw, feature, fromMemory, h, in_view, is_lit, item, lighted, map_title, map_val, memory, mob_color, monster, over_saturate, overhead, pathmap, prelighting_draw, r, terrain, _ref, _ref1;
       if (options == null) {
         options = {};
       }
       color_mod = (_ref = options != null ? options.color_mod : void 0) != null ? _ref : [0, 0, 0];
-      over_saturate = (_ref1 = options != null ? options.over_saturate : void 0) != null ? _ref1 : false;
+      over_saturate = true;
+      map_xy = this.screenToMap(xy);
       if (map_xy == null) {
-        map_xy = xy.add(this.my_view);
+        console.log(xy);
+        return;
       }
       if (!this.gameLevel().checkValid(map_xy)) {
         console.log(map_xy);
         return;
       }
       if (this.debug.pathmaps.index != null) {
-        _ref2 = this.debug.pathmaps.list[this.debug.pathmaps.index], map_title = _ref2[0], pathmap = _ref2[1];
+        _ref1 = this.debug.pathmaps.list[this.debug.pathmaps.index], map_title = _ref1[0], pathmap = _ref1[1];
         map_val = pathmap[map_xy.toKey()];
         if (map_val === MAX_INT) {
           return;
@@ -144,6 +263,7 @@
       is_lit = (lighted != null) || (this.debug_monster_fov === true);
       can_view_and_lit = (in_view && is_lit) || map_xy.compare(this.gamePlayer().coordinates);
       this.clearDisplayAt(this.my_layer_display, xy);
+      this.clearDisplayAt(this.my_dialog_display, xy);
       if (!can_view_and_lit) {
         if (memory == null) {
           draw = [" ", Brew.colors.black, Brew.colors.black];
@@ -179,7 +299,9 @@
             draw[0] = feature.code;
           }
           if ((feature != null) && (feature.color != null)) {
-            draw[1] = feature.getColor();
+            draw[1] = ROT.Color.interpolate(terrain.color, feature.color, feature.intensity);
+          } else if ((feature != null) && (feature.bgcolor != null)) {
+            draw[2] = ROT.Color.interpolate(terrain.bgcolor, feature.bgcolor, feature.intensity);
           }
         }
         if (overhead != null) {
@@ -208,161 +330,33 @@
       }
     };
 
-    UserInterface.prototype.updatePairDisplay = function(drawings) {
-      var bgcolor, code, color, draw_array, key, shade_color, xy;
-      shade_color = Brew.colors.pair_shade;
-      for (key in drawings) {
-        if (!__hasProp.call(drawings, key)) continue;
-        draw_array = drawings[key];
-        xy = keyToCoord(key);
-        code = draw_array[0];
-        color = ROT.Color.toHex(ROT.Color.interpolate(draw_array[1], shade_color, 0.5));
-        bgcolor = ROT.Color.toHex(ROT.Color.interpolate(draw_array[2], shade_color, 0.5));
-        this.my_pair_display.draw(xy.x, xy.y, code, color, bgcolor);
-      }
-      this.drawings = drawings;
-      return true;
-    };
-
-    UserInterface.prototype.updatePairDisplayAt = function(xy) {
-      var bgcolor, code, color, draw_array, key, shade_color;
-      shade_color = Brew.colors.pair_shade;
-      key = xy.toKey();
-      draw_array = this.drawings[key];
-      code = draw_array[0];
-      color = ROT.Color.toHex(ROT.Color.interpolate(draw_array[1], shade_color, 0.5));
-      bgcolor = ROT.Color.toHex(ROT.Color.interpolate(draw_array[2], shade_color, 0.5));
-      this.my_pair_display.draw(xy.x, xy.y, code, color, bgcolor);
-      return true;
-    };
-
     UserInterface.prototype.drawHudAll = function() {
+      return this.drawPlayerInfoPanel();
+    };
+
+    UserInterface.prototype.drawPlayerInfoPanel = function() {
       var color, desc, hp, i, maxhp, player, row_start, _i;
       player = this.gamePlayer();
-      player.hero_type = "Squire";
-      desc = "" + player.name + " <" + player.hero_type + ">";
-      this.my_hud_display.drawText(0, 0, player.name);
+      desc = "" + player.name + " <" + Brew.hero_type[player.hero_type].name + ">";
+      this.drawTextOnPanel("playerinfo", 0, 0, desc, Brew.panels.playerinfo.width);
       row_start = 1;
       maxhp = player.getStat(Brew.stat.health).getMax();
       hp = player.getStat(Brew.stat.health).getCurrent();
       for (i = _i = 1; 1 <= maxhp ? _i <= maxhp : _i >= maxhp; i = 1 <= maxhp ? ++_i : --_i) {
         color = i <= hp ? Brew.colors.red : Brew.colors.normal;
-        this.my_hud_display.draw(i - 1, row_start, Brew.unicode.heart, ROT.Color.toHex(color));
+        this.drawOnPanel("playerinfo", i - 1, row_start, Brew.unicode.heart, ROT.Color.toHex(color));
       }
-      this.drawHudBar(0, 2, 18, player.getStat(Brew.stat.stamina).getCurrent(), player.getStat(Brew.stat.stamina).getMax(), Brew.colors.violet);
-      this.drawHudSync();
-      return this.drawHudAbility();
+      return this.drawBarOnPanel("playerinfo", 0, 2, 13, player.getStat(Brew.stat.stamina).getCurrent(), player.getStat(Brew.stat.stamina).getMax(), Brew.colors.violet);
     };
 
-    UserInterface.prototype.drawHudAbility = function() {
-      var abil_desc, abil_hotkey, black_hex, i, max_width, num_spaces, player, spaces, start_x;
-      black_hex = ROT.Color.toHex(Brew.colors.black);
-      player = this.gamePlayer();
-      if (player.active_ability != null) {
-        abil_hotkey = player.abilities.indexOf(player.active_ability) + 1;
-        abil_desc = "Using " + (Brew.ability[player.active_ability].name.toUpperCase()) + " (" + abil_hotkey + ")";
-      } else {
-        abil_desc = "No ability selected";
+    UserInterface.prototype.drawMessagesPanel = function(message) {
+      if (!message) {
+        return false;
       }
-      start_x = Math.floor(Brew.config.screen_tiles_width / 2);
-      max_width = Math.floor(Brew.config.screen_tiles_width / 2);
-      num_spaces = max_width - abil_desc.length;
-      spaces = ((function() {
-        var _i, _ref, _results;
-        _results = [];
-        for (i = _i = 0, _ref = num_spaces - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
-          _results.push("_");
-        }
-        return _results;
-      })()).join("");
-      return this.my_hud_display.drawText(start_x, 0, "%c{" + black_hex + "}" + spaces + "%c{white}" + abil_desc);
+      return this.drawTextOnPanel("messages", 0, 2, this.appendBlanksToString(message, Brew.panels.messages.width));
     };
 
-    UserInterface.prototype.drawHudSync = function() {
-      var black_hex, i, max_width, message, num_spaces, spaces, start_x, status_msg;
-      black_hex = ROT.Color.toHex(Brew.colors.black);
-      if (!this.game.is_paired) {
-        status_msg = "Not Connected";
-        message = "No Data";
-      } else if (this.game.is_paired && !this.game.pair.sync) {
-        status_msg = "Connected";
-        message = "Awaiting Sync";
-      } else {
-        status_msg = this.game.pair.sync.status ? "In Sync" : "Out of Sync";
-        message = this.game.pair.sync.message;
-      }
-      start_x = Math.floor(Brew.config.screen_tiles_width / 2);
-      max_width = Math.floor(Brew.config.screen_tiles_width / 2);
-      num_spaces = max_width - status_msg.length;
-      spaces = ((function() {
-        var _i, _ref, _results;
-        _results = [];
-        for (i = _i = 0, _ref = num_spaces - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
-          _results.push("_");
-        }
-        return _results;
-      })()).join("");
-      this.my_hud_display.drawText(start_x, 1, "%c{" + black_hex + "}" + spaces + "%c{white}" + status_msg);
-      num_spaces = max_width - message.length;
-      spaces = ((function() {
-        var _i, _ref, _results;
-        _results = [];
-        for (i = _i = 0, _ref = num_spaces - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
-          _results.push("_");
-        }
-        return _results;
-      })()).join("");
-      return this.my_hud_display.drawText(start_x, 2, "%c{" + black_hex + "}" + spaces + "%c{white}" + message);
-    };
-
-    UserInterface.prototype.drawHudBar = function(start_x, start_y, max_tiles, current_amount, max_amount, full_color) {
-      var black_hex, fadecolor, i, num_bars, raw_num_bars, remainder, tile, violet_rgb, _i, _ref;
-      black_hex = ROT.Color.toHex(Brew.colors.black);
-      raw_num_bars = Math.min(1.0, current_amount / max_amount) * max_tiles;
-      num_bars = Math.ceil(raw_num_bars);
-      remainder = num_bars - raw_num_bars;
-      tile = null;
-      for (i = _i = 0, _ref = max_tiles - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; i = 0 <= _ref ? ++_i : --_i) {
-        if (i === num_bars - 1) {
-          if (remainder < 0.25) {
-            fadecolor = full_color;
-          } else if (remainder < 0.5) {
-            fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.25);
-          } else if (remainder < 0.75) {
-            fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.5);
-          } else {
-            fadecolor = ROT.Color.interpolate(full_color, Brew.colors.normal, 0.75);
-          }
-          this.my_hud_display.draw(start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color));
-        } else if (i < num_bars) {
-          this.my_hud_display.draw(start_x + i, start_y, " ", "white", ROT.Color.toHex(full_color));
-        } else {
-          this.my_hud_display.draw(start_x + i, start_y, " ", "white", ROT.Color.toHex(Brew.colors.normal));
-        }
-      }
-      violet_rgb = ROT.Color.toHex(full_color);
-      return this.my_hud_display.drawText(start_x + max_tiles + 1, start_y, "%c{" + violet_rgb + "}" + current_amount + "%c{" + black_hex + "}_");
-    };
-
-    UserInterface.prototype.drawMessage = function(message) {
-      var black_hex, i, max_length, num_spaces, spaces, x, y;
-      black_hex = ROT.Color.toHex(Brew.colors.black);
-      max_length = Brew.config.screen_tiles_width - 1;
-      num_spaces = max_length - message.length;
-      spaces = ((function() {
-        var _i, _results;
-        _results = [];
-        for (i = _i = 0; 0 <= num_spaces ? _i <= num_spaces : _i >= num_spaces; i = 0 <= num_spaces ? ++_i : --_i) {
-          _results.push("_");
-        }
-        return _results;
-      })()).join("");
-      x = 0;
-      y = 3 * this.my_tile_height;
-      return this.my_hud_display.drawText(0, 3, message + ("%c{" + black_hex + "}" + spaces));
-    };
-
-    UserInterface.prototype.drawFooter = function(look_xy) {
+    UserInterface.prototype.drawFooterPanel = function(look_xy) {
       var black_hex, can_view_and_lit, f, i, in_view, is_lit, lighted, m, max_length, memory, message, num_spaces, spaces, t, tap;
       black_hex = ROT.Color.toHex(Brew.colors.black);
       in_view = this.gamePlayer().canView(look_xy);
@@ -392,7 +386,7 @@
           message = "You see " + t.name;
         }
       }
-      max_length = Brew.config.screen_tiles_width - 1;
+      max_length = Brew.panels.footer.width - 1;
       num_spaces = max_length - message.length;
       spaces = ((function() {
         var _i, _results;
@@ -402,7 +396,25 @@
         }
         return _results;
       })()).join("");
-      return this.my_footer_display.drawText(0, 0, message + ("%c{" + black_hex + "}" + spaces));
+      return this.drawTextOnPanel("footer", 0, 0, message + ("%c{" + black_hex + "}" + spaces));
+    };
+
+    UserInterface.prototype.updateAndDrawTargeting = function(target_xy) {
+      var line, old_line, xy, _i, _j, _len, _len1, _ref;
+      old_line = (_ref = this.popup.line) != null ? _ref : [];
+      for (_i = 0, _len = old_line.length; _i < _len; _i++) {
+        xy = old_line[_i];
+        delete this.highlights[xy.toKey()];
+        this.drawMapAt(xy);
+      }
+      line = Brew.utils.getLineBetweenPoints(this.gamePlayer().coordinates, target_xy);
+      for (_j = 0, _len1 = line.length; _j < _len1; _j++) {
+        xy = line[_j];
+        this.highlights[xy.toKey()] = Brew.colors.yellow;
+        this.drawMapAt(xy);
+      }
+      this.popup.line = line;
+      return this.popup.xy = target_xy;
     };
 
     UserInterface.prototype.drawBorders = function(display, color, rectangle) {
@@ -431,10 +443,6 @@
 
     UserInterface.prototype.clearDisplay = function(display) {
       return display._backend._context.clearRect(0, 0, display.getContainer().width, display.getContainer().height);
-    };
-
-    UserInterface.prototype.clearPopupDisplay = function() {
-      return this.clearDisplay(this.my_popup_display);
     };
 
     UserInterface.prototype.clearLayerDisplay = function() {
@@ -476,50 +484,37 @@
       return $("#id_div_dialog").show();
     };
 
-    UserInterface.prototype.showInfoScreen = function(width_tiles, height_tiles) {
-      var isCentered, offset_height_tiles, offset_width_tiles, pos;
+    UserInterface.prototype.activateDialogScreen = function(title, instruct_text, highlight_color) {
+      var color_hex;
       this.drawDisplayAll({
-        color_override: [50, 50, 50]
+        color_override: [75, 75, 75]
       });
-      pos = $(this.my_display.getContainer()).position();
-      isCentered = true;
-      offset_width_tiles = Math.floor((Brew.config.screen_tiles_width - width_tiles) / 2);
-      offset_height_tiles = Math.floor((Brew.config.screen_tiles_height - height_tiles) / 2);
-      $("#id_div_popup").css({
-        position: "absolute",
-        top: pos.top,
-        left: pos.left
+      this.clearDialogDisplay();
+      this.drawBorders(this.my_dialog_display, highlight_color, {
+        x: Brew.panels.game.x,
+        y: Brew.panels.game.y,
+        width: Brew.panels.game.width - 1,
+        height: Brew.panels.game.height - 1
       });
-      this.clearPopupDisplay();
-      this.drawBorders(this.my_popup_display, Brew.colors.white, {
-        x: offset_width_tiles,
-        y: offset_height_tiles,
-        width: width_tiles,
-        height: height_tiles
-      });
-      $("#id_div_popup").show();
-      this.my_popup_display.drawText(offset_width_tiles + 1, offset_height_tiles + 1, this.game.getItemNameFromCatalog(this.popup.item));
-      this.my_popup_display.drawText(offset_width_tiles + 1, offset_height_tiles + 3, this.popup.item.description, width_tiles - 1);
+      color_hex = ROT.Color.toHex(highlight_color);
+      this.my_dialog_display.drawText(Brew.panels.game.x + 1, Brew.panels.game.y + 0, "%c{" + color_hex + "}[ " + title + " ]");
+      this.my_dialog_display.drawText(Brew.panels.game.x + 1, Brew.panels.game.y + Brew.panels.game.height - 1, "%c{" + color_hex + "}[ " + instruct_text + " ]");
       return this.input_handler = "popup_to_dismiss";
     };
 
+    UserInterface.prototype.showInfoScreen = function() {
+      var instructions, title;
+      title = this.game.getItemNameFromCatalog(this.popup.item);
+      instructions = "Press any key to dismiss";
+      this.activateDialogScreen(title, instructions, Brew.colors.white);
+      return this.my_dialog_display.drawText(Brew.panels.game.x + 1, Brew.panels.game.y + 3, this.popup.item.description, Brew.panels.game.width - 1);
+    };
+
     UserInterface.prototype.showInventory = function() {
-      var action_word, apply, apply_list, color_hotkey_hex, color_text_hex, color_title_hex, context, filter_fn, inventory_title, item, key, offset_info, offset_xy, pos, terrain, text, y, _i, _len, _ref;
-      this.drawDisplayAll({
-        color_override: [50, 50, 50]
-      });
-      pos = $(this.my_display.getContainer()).position();
-      $("#id_div_popup").css({
-        position: "absolute",
-        top: pos.top,
-        left: pos.left
-      });
-      this.clearPopupDisplay();
+      var action_word, apply, apply_list, color_hotkey_hex, color_text_hex, color_title_hex, context, filter_fn, inventory_title, item, key, offset_info, offset_xy, terrain, text, y, _i, _len, _ref;
       color_title_hex = ROT.Color.toHex(Brew.colors.inventorymenu.title);
       color_text_hex = ROT.Color.toHex(Brew.colors.inventorymenu.text);
       color_hotkey_hex = ROT.Color.toHex(Brew.colors.inventorymenu.hotkey);
-      this.drawBorders(this.my_popup_display, Brew.colors.inventorymenu.border);
-      $("#id_div_popup").show();
       if (this.popup.context) {
         action_word = this.popup.context === "apply" ? "use" : this.popup.context;
         context = action_word[0].toUpperCase() + action_word.slice(1);
@@ -573,8 +568,8 @@
             })(this);
         }
       }).call(this);
-      this.my_popup_display.drawText(1, 1, ("%c{" + color_title_hex + "}") + inventory_title);
-      y = 2;
+      this.activateDialogScreen(inventory_title, "Select Item, [Any ] to dismiss", Brew.colors.inventorymenu.border);
+      y = Brew.panels.game.y + 2;
       _ref = this.gamePlayer().inventory.items;
       for (key in _ref) {
         if (!__hasProp.call(_ref, key)) continue;
@@ -582,13 +577,13 @@
         if (!filter_fn(item)) {
           continue;
         }
-        this.my_popup_display.draw(1, y, item.inv_key_lower, color_hotkey_hex);
-        this.my_popup_display.draw(3, y, item.code, ROT.Color.toHex(item.color));
+        this.my_dialog_display.draw(Brew.panels.game.x + 1, y, item.inv_key_lower, color_hotkey_hex);
+        this.my_dialog_display.draw(Brew.panels.game.x + 3, y, item.code, ROT.Color.toHex(item.color));
         text = ("%c{" + color_text_hex + "}") + this.game.getItemNameFromCatalog(item);
         if (item.equip) {
           text += " (Equipped)";
         }
-        this.my_popup_display.drawText(5, y, text);
+        this.my_dialog_display.drawText(Brew.panels.game.x + 5, y, text);
         y += 1;
       }
       if (this.popup.context === "apply") {
@@ -601,10 +596,11 @@
           terrain = apply[1];
           offset_info = Brew.utils.getOffsetInfo(offset_xy);
           this.popup.terrain[offset_info.arrow_keycode] = terrain;
-          this.my_popup_display.draw(1, y, offset_info.unicode, ROT.Color.toHex(Brew.colors.white));
-          this.my_popup_display.draw(3, y, terrain.code, ROT.Color.toHex(terrain.color));
+          this.popup.terrain[offset_info.numpad_keycode] = terrain;
+          this.my_dialog_display.draw(Brew.panels.game.x + 1, y, offset_info.unicode, ROT.Color.toHex(Brew.colors.white));
+          this.my_dialog_display.draw(Brew.panels.game.x + 3, y, terrain.code, ROT.Color.toHex(terrain.color));
           text = ("%c{" + color_text_hex + "}") + terrain.name;
-          this.my_popup_display.drawText(5, y, text);
+          this.my_dialog_display.drawText(Brew.panels.game.x + 5, y, text);
           y += 1;
         }
       }
@@ -613,14 +609,14 @@
     };
 
     UserInterface.prototype.showItemMenu = function(item) {
-      var action, action_name, actions, can_do_it, color_hotkey_hex, color_text_hex, color_title_hex, extra_desc, i;
-      this.clearPopupDisplay();
+      var action, action_name, actions, can_do_it, color_hotkey_hex, color_text_hex, color_title_hex, extra_desc, i, item_title;
+      this.clearDialogDisplay();
       color_title_hex = ROT.Color.toHex(Brew.colors.itemmenu.title);
       color_text_hex = ROT.Color.toHex(Brew.colors.itemmenu.text);
       color_hotkey_hex = ROT.Color.toHex(Brew.colors.itemmenu.hotkey);
-      this.drawBorders(this.my_popup_display, Brew.colors.itemmenu.border);
-      this.my_popup_display.drawText(1, 1, ("%c{" + color_title_hex + "}") + this.game.getItemNameFromCatalog(item));
-      this.my_popup_display.drawText(1, 3, ("%c{" + color_title_hex + "}") + this.game.getItemDescription(item), 38);
+      item_title = this.game.getItemNameFromCatalog(item);
+      this.activateDialogScreen(item_title, "", Brew.colors.itemmenu.border);
+      this.my_dialog_display.drawText(Brew.panels.game.x + 1, Brew.panels.game.y + 3, this.game.getItemDescription(item), Brew.panels.game.width - 2);
       extra_desc = "";
       if (item.group === Brew.groups.WEAPON) {
         extra_desc = "Damage: " + item.damage;
@@ -629,7 +625,7 @@
       } else if (item.group === Brew.groups.HAT) {
         extra_desc = "Hats are just decorative for now";
       }
-      this.my_popup_display.drawText(1, 8, extra_desc, 38);
+      this.my_dialog_display.drawText(Brew.panels.game.x + 1, Brew.panels.game.y + 8, extra_desc, Brew.panels.game.width - 2);
       actions = {
         apply: this.game.canApply(item),
         equip: this.game.canEquip(item),
@@ -644,7 +640,7 @@
         can_do_it = actions[action];
         if (can_do_it) {
           action_name = action === "apply" ? "use" : action;
-          this.my_popup_display.drawText(2, 10 + i, ("%c{" + color_hotkey_hex + "}") + action_name[0].toUpperCase() + ("%c{" + color_text_hex + "}") + action_name.slice(1));
+          this.my_dialog_display.drawText(Brew.panels.game.x + 2, Brew.panels.game.y + 10 + i, ("%c{" + color_hotkey_hex + "}") + action_name[0].toUpperCase() + ("%c{" + color_text_hex + "}") + action_name.slice(1));
           i += 1;
         }
       }
@@ -788,29 +784,6 @@
       return this.input_handler = "popup_to_dismiss";
     };
 
-    UserInterface.prototype.showTimeOrbScreen = function() {
-      var color_hotkey_hex, color_text_hex, color_title_hex, row_start;
-      this.clearPopupDisplay();
-      color_title_hex = ROT.Color.toHex(Brew.colors.itemmenu.title);
-      color_text_hex = ROT.Color.toHex(Brew.colors.itemmenu.text);
-      color_hotkey_hex = ROT.Color.toHex(Brew.colors.itemmenu.hotkey);
-      this.drawBorders(this.my_popup_display, Brew.colors.itemmenu.border);
-      $("#id_div_popup").show();
-      this.my_popup_display.drawText(2, 1, "The TIME ORB pulses and swirls");
-      this.my_popup_display.drawText(2, 2, "mysteriously.");
-      this.my_popup_display.drawText(2, 4, "You can use it to help your partner");
-      this.my_popup_display.drawText(2, 5, "across the splintered reality within");
-      this.my_popup_display.drawText(2, 6, "the Caves:");
-      row_start = 8;
-      this.my_popup_display.drawText(2, row_start, "- Incoming -");
-      this.my_popup_display.drawText(2, row_start + 1, "(1) Fireball");
-      row_start += 2;
-      this.my_popup_display.drawText(2, row_start, "- Send -");
-      this.my_popup_display.drawText(2, row_start + 1, "(!) Send Item");
-      this.my_popup_display.drawText(2, row_start + 2, "(@) Send Monster");
-      return this.input_handler = "timeorb";
-    };
-
     UserInterface.prototype.showAbilities = function() {
       var abil, color_hotkey_hex, color_text_hex, color_title_hex, idx, pos, row_start, _i, _len, _ref;
       this.drawDisplayAll({
@@ -841,6 +814,55 @@
       return this.input_handler = "abilities";
     };
 
+    UserInterface.prototype.showTargeting = function(ability, keycode) {
+      var first_target;
+      this.popup.context = "target";
+      this.popup.ability = ability;
+      this.popup.keycode = keycode;
+      first_target = this.guessFirstTarget(ability);
+      if (first_target == null) {
+        this.drawTextOnPanel("footer", 0, 0, this.appendBlanksToString("No targets in range", Brew.panels.footer.width));
+        return false;
+      }
+      this.updateAndDrawTargeting(first_target.coordinates);
+      this.drawTextOnPanel("footer", 0, 0, this.appendBlanksToString("Targeting " + ability, Brew.panels.footer.width));
+      this.input_handler = "targeting";
+      return true;
+    };
+
+    UserInterface.prototype.guessFirstTarget = function(ability) {
+      var enemies_in_view, m, player, potential_targets;
+      player = this.gamePlayer();
+      enemies_in_view = (function() {
+        var _i, _len, _ref, _results;
+        _ref = this.gameLevel().getMonsters();
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          m = _ref[_i];
+          if (player.hasKnowledgeOf(m)) {
+            _results.push(m);
+          }
+        }
+        return _results;
+      }).call(this);
+      potential_targets = (function() {
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = enemies_in_view.length; _i < _len; _i++) {
+          m = enemies_in_view[_i];
+          if (this.game.abil.checkUseAt(ability, m.coordinates)) {
+            _results.push(m);
+          }
+        }
+        return _results;
+      }).call(this);
+      if (potential_targets.length > 0) {
+        return potential_targets[0];
+      } else {
+        return null;
+      }
+    };
+
     UserInterface.prototype.inputGameplay = function(keycode, shift_key) {
       var offset_xy;
       if (__indexOf.call(Brew.keymap.MOVE_LEFT, keycode) >= 0) {
@@ -854,6 +876,18 @@
         return this.game.movePlayer(offset_xy);
       } else if (__indexOf.call(Brew.keymap.MOVE_DOWN, keycode) >= 0) {
         offset_xy = Brew.directions.s;
+        return this.game.movePlayer(offset_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_UPLEFT, keycode) >= 0) {
+        offset_xy = Brew.directions.nw;
+        return this.game.movePlayer(offset_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_UPRIGHT, keycode) >= 0) {
+        offset_xy = Brew.directions.ne;
+        return this.game.movePlayer(offset_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWNLEFT, keycode) >= 0) {
+        offset_xy = Brew.directions.sw;
+        return this.game.movePlayer(offset_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWNRIGHT, keycode) >= 0) {
+        offset_xy = Brew.directions.se;
         return this.game.movePlayer(offset_xy);
       } else if (__indexOf.call(Brew.keymap.GENERIC_ACTION, keycode) >= 0) {
         return this.game.doPlayerAction();
@@ -912,7 +946,7 @@
           return true;
         }
       }
-      $("#id_div_popup").hide();
+      this.clearDialogDisplay();
       this.drawDisplayAll();
       this.popup = {};
       return this.input_handler = null;
@@ -947,7 +981,7 @@
         if (this.popup.actions["throw"]) {
           this.promptThrow(this.popup.item);
         } else {
-          console.log("you cant THROW THAT");
+          console.log("you cant T-HROW that");
         }
       } else if (keycode === 82) {
         if (this.popup.actions.remove) {
@@ -959,7 +993,7 @@
         this.showInventory();
         return true;
       }
-      $("#id_div_popup").hide();
+      this.clearDialogDisplay();
       this.drawDisplayAll();
       this.popup = {};
       return this.input_handler = null;
@@ -967,7 +1001,7 @@
 
     UserInterface.prototype.inputPopupToDismiss = function(keycode) {
       if (keycode === 32 || keycode === 13 || keycode === 27) {
-        $("#id_div_popup").hide();
+        this.clearDialogDisplay();
         this.drawDisplayAll();
         this.popup = {};
         return this.input_handler = null;
@@ -1017,18 +1051,37 @@
       }
     };
 
-    UserInterface.prototype.inputTimeOrb = function(keycode, shiftKey) {
-      if (keycode === 32 || keycode === 13 || keycode === 27) {
-        $("#id_div_popup").hide();
+    UserInterface.prototype.inputTargeting = function(keycode, shift_key) {
+      var offset_xy, popup_xy, target_xy;
+      popup_xy = clone(this.popup.xy);
+      if (__indexOf.call(Brew.keymap.MOVE_LEFT, keycode) >= 0) {
+        offset_xy = Brew.directions.w;
+        target_xy = popup_xy.add(offset_xy);
+        return this.updateAndDrawTargeting(target_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_RIGHT, keycode) >= 0) {
+        offset_xy = Brew.directions.e;
+        target_xy = popup_xy.add(offset_xy);
+        return this.updateAndDrawTargeting(target_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_UP, keycode) >= 0) {
+        offset_xy = Brew.directions.n;
+        target_xy = popup_xy.add(offset_xy);
+        return this.updateAndDrawTargeting(target_xy);
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWN, keycode) >= 0) {
+        offset_xy = Brew.directions.s;
+        target_xy = popup_xy.add(offset_xy);
+        return this.updateAndDrawTargeting(target_xy);
+      } else if (__indexOf.call(Brew.keymap.GENERIC_ACTION, keycode) >= 0 || ((this.popup.ability != null) && keycode === this.popup.keycode)) {
+        this.input_handler = "";
+        this.highlights = {};
         this.drawDisplayAll();
-        this.popup = {};
-        return this.input_handler = null;
+        this.game.doTargetingAt(this.popup.ability, this.popup.xy);
+        return this.popup = {};
       }
     };
 
     UserInterface.prototype.mouseDown = function(grid_obj_xy, button, shift_key) {
       var map_xy, player, target_is_player, target_mob;
-      map_xy = this.my_view.add(grid_obj_xy);
+      map_xy = this.my_view.add(grid_obj_xy).subtract(this.panel_offsets["game"]);
       player = this.gamePlayer();
       target_mob = this.gameLevel().getMonsterAt(map_xy);
       target_is_player = (target_mob != null) && Brew.utils.compareThing(target_mob, player);
@@ -1046,7 +1099,7 @@
 
     UserInterface.prototype.mouseLongClick = function(grid_obj_xy, button, shift_key) {
       var m, map_xy;
-      map_xy = this.my_view.add(grid_obj_xy);
+      map_xy = this.my_view.add(grid_obj_xy).subtract(this.panel_offsets["game"]);
       m = this.gameLevel().getMonsterAt(map_xy);
       if (m != null) {
         this.popup.monster = m;
@@ -1056,14 +1109,21 @@
 
     UserInterface.prototype.mouseGainFocus = function(grid_obj_xy) {
       var grid_xy, map_xy;
-      grid_manager.drawBorderAt(grid_obj_xy, 'white');
       grid_xy = new Coordinate(grid_obj_xy.x, grid_obj_xy.y);
-      map_xy = this.my_view.add(grid_xy);
-      this.drawFooter(map_xy);
-      if (this.game.my_player.active_ability != null) {
-        if (this.game.abil.checkUseAt(this.game.my_player.active_ability, map_xy)) {
-          this.highlights[map_xy.toKey()] = Brew.colors.green;
-          return this.drawMapAt(map_xy);
+      if (this.getPanelAt(grid_xy) !== "game") {
+        return;
+      }
+      if (this.popup.context === "target") {
+        return this.updateAndDrawTargeting(this.screenToMap(grid_xy));
+      } else {
+        grid_manager.drawBorderAt(grid_obj_xy, 'white');
+        map_xy = this.screenToMap(grid_xy);
+        this.drawFooterPanel(map_xy);
+        if (this.game.my_player.active_ability != null) {
+          if (this.game.abil.checkUseAt(this.game.my_player.active_ability, map_xy)) {
+            this.highlights[map_xy.toKey()] = Brew.colors.green;
+            return this.drawMapAt(map_xy);
+          }
         }
       }
     };
@@ -1071,43 +1131,12 @@
     UserInterface.prototype.mouseLeaveFocus = function(grid_obj_xy) {
       var grid_xy, map_xy;
       grid_xy = new Coordinate(grid_obj_xy.x, grid_obj_xy.y);
-      map_xy = this.my_view.add(grid_xy);
-      delete this.highlights[grid_xy.toKey()];
-      return this.drawDisplayAt(grid_xy);
-    };
-
-    UserInterface.prototype.mouseDownPair = function(grid_obj_xy, button, shift_key) {
-      var pair_map_xy;
-      if (!this.game.is_paired) {
-        return false;
+      if (this.getPanelAt(grid_xy) !== "game") {
+        return;
       }
-      pair_map_xy = this.game.pair.view.xy.add(grid_obj_xy);
-      this.game.doPlayerPairClick(pair_map_xy);
-      return true;
-    };
-
-    UserInterface.prototype.mouseGainFocusPair = function(grid_obj_xy) {
-      var drawing, pair_map_xy;
-      if (!this.game.is_paired) {
-        return false;
-      }
-      pair_grid_manager.drawBorderAt(grid_obj_xy, 'white');
-      pair_map_xy = this.game.pair.view.xy.add(grid_obj_xy);
-      if (this.game.my_player.active_ability != null) {
-        if (this.game.abil.checkPairUseAt(this.game.my_player.active_ability, pair_map_xy)) {
-          drawing = this.displayat[pair_map_xy.toKey()];
-          return this.my_pair_display.draw(grid_obj_xy.x, grid_obj_xy.y, drawing[0], drawing[1], "green");
-        }
-      }
-    };
-
-    UserInterface.prototype.mouseLeaveFocusPair = function(grid_obj_xy) {
-      var grid_xy;
-      if (!this.game.is_paired) {
-        return false;
-      }
-      grid_xy = new Coordinate(grid_obj_xy.x, grid_obj_xy.y);
-      return this.updatePairDisplayAt(grid_xy);
+      map_xy = this.screenToMap(grid_xy);
+      delete this.highlights[map_xy.toKey()];
+      return this.drawMapAt(map_xy);
     };
 
     UserInterface.prototype.showDialogAbove = function(loc_xy, msg, color_rgb) {
@@ -1207,7 +1236,7 @@
     UserInterface.prototype.debugAtCoords = function() {
       var f, grid_obj_xy, i, key, m, map_xy, o;
       grid_obj_xy = grid_manager.getLastVisitGrid();
-      map_xy = coordFromObject(grid_obj_xy);
+      map_xy = this.my_view.add(grid_obj_xy).subtract(this.panel_offsets["game"]);
       console.log("grid xy", grid_obj_xy);
       console.log("map xy", map_xy);
       key = map_xy.toKey();

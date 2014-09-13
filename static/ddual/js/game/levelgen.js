@@ -61,12 +61,18 @@
     }
 
     LevelGenerator.prototype.create = function(depth, width, height, levelgen_options, level_seed) {
-      var dungeon_options, level;
+      var connections, dungeon_options, level, rooms, success, _ref;
       ROT.RNG.setSeed(level_seed);
       dungeon_options = getDungeonOptions();
       level = new Brew.Level(depth, width, height, levelgen_options);
-      buildDungeon(level, dungeon_options);
+      _ref = buildDungeon(level, dungeon_options), success = _ref[0], rooms = _ref[1], connections = _ref[2];
+      if (!success) {
+        throw "Critical error while building dungeon";
+      }
+      this.makeExciting(level);
       level.calcTerrainNavigation();
+      this.setupRoomDecoration(level, rooms);
+      this.growFlora(level, level.getRandomWalkableLocation(), [], 0, 8);
       setupPortals(level);
       setupMonsters(level);
       if (!(levelgen_options != null ? levelgen_options.noItems : void 0)) {
@@ -75,20 +81,107 @@
       return level;
     };
 
+    LevelGenerator.prototype.setupRoomDecoration = function(level, rooms) {
+      var floor_xy, put_statue, put_torch, room, room_id, torch_xy, _results;
+      _results = [];
+      for (room_id in rooms) {
+        if (!__hasProp.call(rooms, room_id)) continue;
+        room = rooms[room_id];
+        put_torch = true;
+        put_statue = ROT.RNG.getUniform() < 0.15;
+        if (put_torch) {
+          torch_xy = this.findTorchLocation(level, room);
+          if (torch_xy != null) {
+            console.log(torch_xy);
+            level.setTerrainAt(torch_xy, Brew.terrainFactory("WALL_TORCH"));
+          } else {
+            console.log("couldn't find torch spot");
+          }
+        }
+        if (put_statue) {
+          floor_xy = room.getFloors().random();
+          _results.push(level.setTerrainAt(floor_xy, Brew.terrainFactory("STATUE")));
+        } else {
+          _results.push(void 0);
+        }
+      }
+      return _results;
+    };
+
+    LevelGenerator.prototype.findTorchLocation = function(level, room) {
+      var floor_list, found_spot, neighbor_xy, next_t, non_room_tiles, room_tiles, t, torch_xy, tries, wall_xy, _i, _len, _ref;
+      found_spot = false;
+      tries = 0;
+      torch_xy = null;
+      floor_list = room.getFloors();
+      while (tries < 10) {
+        wall_xy = room.getWalls().random();
+        t = level.getTerrainAt(wall_xy);
+        if ((t != null) && Brew.utils.isTerrain(t, "WALL")) {
+          non_room_tiles = 0;
+          room_tiles = 0;
+          _ref = wall_xy.getSurrounding();
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            neighbor_xy = _ref[_i];
+            next_t = level.getTerrainAt(neighbor_xy);
+            if ((next_t != null) && (!next_t.blocks_vision)) {
+              if (__indexOf.call(floor_list, next_t) >= 0) {
+                room_tiles += 1;
+              } else {
+                non_room_tiles += 1;
+              }
+            }
+          }
+          console.log(room_tiles, non_room_tiles);
+          if (non_room_tiles === 0) {
+            torch_xy = wall_xy;
+            break;
+          }
+        }
+        tries += 1;
+      }
+      return torch_xy;
+    };
+
+    LevelGenerator.prototype.growFlora = function(level, spawn_xy, visited_list, my_step, max_steps) {
+      var neighbor_xy, t, _i, _len, _ref;
+      if (my_step >= max_steps) {
+        return false;
+      }
+      if (__indexOf.call(visited_list, spawn_xy) >= 0) {
+        return false;
+      }
+      t = level.getTerrainAt(spawn_xy);
+      if (t == null) {
+        return false;
+      }
+      if (!Brew.utils.isTerrain(t, "FLOOR")) {
+        return false;
+      }
+      level.setTerrainAt(spawn_xy, Brew.terrainFactory("FLOOR_MOSS"));
+      visited_list.push(spawn_xy);
+      _ref = spawn_xy.getAdjacent();
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        neighbor_xy = _ref[_i];
+        this.growFlora(level, neighbor_xy, visited_list, my_step + 1, max_steps);
+      }
+      return true;
+    };
+
     LevelGenerator.prototype.makeExciting = function(level) {
-      var g, noise, r, val, x, xy, y, _i, _j, _ref, _ref1;
+      var noise, t, val, x, xy, y, _i, _j, _ref, _ref1;
       noise = new ROT.Noise.Simplex(Brew.config.width);
       for (x = _i = 0, _ref = level.width - 1; 0 <= _ref ? _i <= _ref : _i >= _ref; x = 0 <= _ref ? ++_i : --_i) {
         for (y = _j = 0, _ref1 = level.height - 1; 0 <= _ref1 ? _j <= _ref1 : _j >= _ref1; y = 0 <= _ref1 ? ++_j : --_j) {
           val = noise.get(x / 20, y / 20);
           xy = new Coordinate(x, y);
-          if (val >= 0.6) {
-            r = ~~(val * 255);
-            g = 0;
+          t = level.getTerrainAt(xy);
+          if (val >= 0.75) {
             level.setTerrainAt(xy, Brew.terrainFactory("STONE"));
-          } else if (val <= -0.60) {
-            r = 0;
-            g = ~~(-val * 255);
+          } else if (val <= -0.75) {
+            if (!Brew.utils.isTerrain(t, "WALL")) {
+              level.setTerrainAt(xy, Brew.terrainFactory("SHALLOW_POOL"));
+            }
           }
         }
       }
@@ -96,7 +189,7 @@
     };
 
     LevelGenerator.prototype.setupItems = function(level) {
-      var corpse_xy, def_id, extra_flasks, i, idef, item, min_depth, num_items, potential_items, xy, _i, _j, _ref, _ref1;
+      var corpse_xy, def_id, extra_flasks, i, idef, intensity, item, key, min_depth, num_items, potential_items, splat, xy, _i, _j, _ref, _ref1;
       num_items = Brew.config.items_per_level;
       potential_items = [];
       _ref = Brew.item_def;
@@ -126,6 +219,12 @@
             corpse_xy = this.getNearby(level, xy);
             if (corpse_xy != null) {
               level.setItemAt(corpse_xy, Brew.itemFactory("ARMY_CORPSE"));
+              splat = Brew.utils.createSplatter(corpse_xy, 4);
+              for (key in splat) {
+                if (!__hasProp.call(splat, key)) continue;
+                intensity = splat[key];
+                level.setFeatureAt(keyToCoord(key), Brew.featureFactory("BLOOD"));
+              }
             }
           }
         }
@@ -239,7 +338,7 @@
       door_status = ROT.RNG.getUniform() < 0.75 ? "DOOR_CLOSED" : "DOOR_OPEN";
       level.setTerrainAt(connection.door_xy, Brew.terrainFactory(door_status));
     }
-    return true;
+    return [true, rooms, connections];
   };
 
   getOffsetXY = function(side) {

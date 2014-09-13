@@ -280,7 +280,7 @@
 
     Game.prototype.msg = function(text) {
       console.log(text);
-      return this.ui.drawMessage(text);
+      return this.ui.drawMessagesPanel(text);
     };
 
     Game.prototype.msgFrom = function(monster, text) {
@@ -354,9 +354,6 @@
       } else if (Brew.utils.isTerrain(terrain, "DOOR_OPEN")) {
         this.my_level.setTerrainAt(terrain.coordinates, Brew.terrainFactory("DOOR_CLOSED"));
         return true;
-      } else if (Brew.utils.isTerrain(terrain, "ALTAR") && !bump) {
-        this.msg("Your puny Gods cannot help you!");
-        return false;
       }
       this.msg("You aren't sure how to apply that " + terrain.name);
       return false;
@@ -396,7 +393,7 @@
         if (item.group === Brew.groups.INFO) {
           this.ui.popup.context = "info";
           this.ui.popup.item = item;
-          return this.ui.showInfoScreen(Brew.config.screen_tiles_width - 1, Brew.config.screen_tiles_height - 1);
+          return this.ui.showInfoScreen();
         } else if (item.group === Brew.groups.CORPSE) {
           return this.msg("You don't want to pick that up.");
         } else {
@@ -725,7 +722,7 @@
     };
 
     Game.prototype.attack = function(attacker, defender, is_melee, options) {
-      var attacker_is_player, block, combat_msg, damage, defender_armor, defender_is_player, equipped_wpn, flash_color, is_dead, overkill, weapon, _ref, _ref1, _ref2;
+      var attacker_is_player, block, combat_msg, damage, defender_armor, defender_is_player, equipped_wpn, flash_color, intensity, is_dead, key, overkill, splat, t, weapon, xy, _ref, _ref1, _ref2;
       if (options == null) {
         options = {};
       }
@@ -789,6 +786,18 @@
       }
       is_dead = defender.getStat(Brew.stat.health).isZero();
       this.ui.drawHudAll();
+      splat = Brew.utils.createSplatter(defender.coordinates, 3);
+      for (key in splat) {
+        if (!__hasProp.call(splat, key)) continue;
+        intensity = splat[key];
+        xy = keyToCoord(key);
+        t = this.my_level.getTerrainAt(xy);
+        if (t.show_gore) {
+          this.my_level.setFeatureAt(xy, Brew.featureFactory("BLOOD", {
+            intensity: intensity
+          }));
+        }
+      }
       if (is_melee && !is_dead) {
         flash_color = Brew.colors.red;
         return this.addAnimation(new Brew.FlashAnimation(clone(defender.coordinates), flash_color));
@@ -946,7 +955,7 @@
         return function() {
           return _this.nextTurn();
         };
-      })(this), 50);
+      })(this), Brew.config.animation_speed);
     };
 
     Game.prototype.nextTurn = function() {
@@ -1114,7 +1123,7 @@
     };
 
     Game.prototype.doPlayerSelectAbility = function(keycode) {
-      var current_abil, idx, selected_abil;
+      var idx, selected_abil;
       idx = keycode - 49;
       if (this.my_player.abilities.length === 0) {
         return this.msg("You don't have any abilities");
@@ -1122,28 +1131,23 @@
         return this.msg("Invalid ability number -- too high");
       } else {
         selected_abil = this.my_player.abilities[idx];
-        current_abil = this.my_player.active_ability;
-        if (current_abil === selected_abil) {
-          return this.doPlayerDisableAbility(selected_abil);
-        } else {
-          if (current_abil != null) {
-            this.doPlayerDisableAbility(current_abil);
-          }
-          return this.doPlayerEnableAbility(selected_abil);
-        }
+        return this.doPlayerAbility(selected_abil, keycode);
       }
     };
 
-    Game.prototype.doPlayerEnableAbility = function(ability) {
-      this.my_player.active_ability = ability;
-      this.msg("Using " + Brew.ability[ability].name + ", click to activate.");
-      return this.ui.drawHudAll();
+    Game.prototype.doPlayerAbility = function(ability, keycode) {
+      return this.ui.showTargeting(ability, keycode);
     };
 
-    Game.prototype.doPlayerDisableAbility = function(ability) {
-      this.my_player.active_ability = null;
-      console.log("No longer using " + Brew.ability[ability].name + ".");
-      return this.ui.drawHudAll();
+    Game.prototype.doTargetingAt = function(ability, target_xy) {
+      var can_use, data, _ref;
+      _ref = this.abil.canUseAt(ability, target_xy), can_use = _ref[0], data = _ref[1];
+      if (!can_use) {
+        this.msg("" + data);
+        return false;
+      }
+      this.abil.execute(ability, target_xy, false);
+      return true;
     };
 
     Game.prototype.checkForIncoming = function() {

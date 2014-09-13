@@ -103,6 +103,7 @@ class window.Brew.Terrain extends Brew.Thing
 		@blocks_walking = terrain_info.blocks_walking ? false
 		@blocks_flying = terrain_info.blocks_flying ? false
 		@code = if typeIsArray(terrain_info.code) then terrain_info.code[Math.floor(ROT.RNG.getUniform()*terrain_info.code.length)] else terrain_info.code
+		@show_gore = terrain_info.show_gore ? false
 
 		# handle everything else via direct assignment
 		for own param, value of terrain_info
@@ -137,6 +138,10 @@ class window.Brew.Feature extends Brew.Thing
 	getColor: () ->
 		# scales color based on intensity
 		return (Math.floor(@color[i] * @intensity) for i in [0, 1, 2])
+
+	getBackgroundColor: () ->
+		# scales background color based on intensity
+		return (Math.floor(@bgcolor[i] * @intensity) for i in [0, 1, 2])
 
 class window.Brew.Item extends Brew.Thing
 	constructor: (item_info) ->
@@ -305,6 +310,7 @@ class window.Brew.Monster extends Brew.Thing
 		@knowledge = []
 		@memory = {}
 		@pathmaps = {}
+		@sight_radius = monster_info.sight_radius ? 9
 		@inventory = new Brew.Inventory()
 		@status = monster_info.status ? Brew.monster_status.SLEEP
 		@rank = monster_info.rank ? 0
@@ -429,7 +435,7 @@ class window.Brew.Monster extends Brew.Thing
 			
 		# rot_fov = new ROT.FOV.DiscreteShadowcasting(fn_allow_vision)
 		rot_fov = new ROT.FOV.PreciseShadowcasting(fn_allow_vision)
-		rot_fov.compute(@coordinates.x, @coordinates.y, 9, fn_update_fov)
+		rot_fov.compute(@coordinates.x, @coordinates.y, @sight_radius, fn_update_fov)
 		
 		# add monsters telepathically
 		# if @group == "player"
@@ -498,7 +504,7 @@ class window.Brew.Level
 			if x < 0 or x >= @width or y < 0 or y >= @height
 				return false
 			else
-				return not @checkBlocksVision(new Coordinate(x, y))
+				return not @checkBlocksLight(new Coordinate(x, y))
 			
 		fn_update_light = (x, y, color) =>
 			# also update level for lightcasting
@@ -511,7 +517,7 @@ class window.Brew.Level
 				# return 0
 			# else
 				# return if @checkBlocksVision(new Coordinate(x, y)) then 0 else 0.3
-		light_range = Math.max(@width, @height)
+		light_range = Math.floor(Math.min(@width, @height) / 2)
 		rot_fov = new ROT.FOV.PreciseShadowcasting(fn_allow_vision)
 		lighting = new ROT.Lighting(fn_reflectivity, {range: light_range, passes:2})
 		lighting.setFOV(rot_fov)
@@ -530,8 +536,19 @@ class window.Brew.Level
 		t = @getTerrainAt(xy)
 		if not t?
 			debugger
+
 		return t.blocks_vision
-		
+	
+	checkBlocksLight: (xy) ->
+		t = @getTerrainAt(xy)
+		if not t?
+			debugger
+
+		if t.light_source?
+			return false
+		else
+			return t.blocks_vision
+
 	# terrain
 	setTerrainAt: (xy, terrain) ->
 		key = xy.toKey()

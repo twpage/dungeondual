@@ -1,15 +1,47 @@
+window.Brew.panels =
+	full:
+		x: 0
+		y: 0
+		width: 96
+		height: 34
+
+	messages:
+		x: 0
+		y: 0
+		width: 64
+		height: 3
+
+	game:
+		x: 0
+		y: 3
+		width: 64
+		height: 30
+
+	footer:
+		x: 0
+		y: 33
+		width: 64
+		height: 1
+
+	playerinfo:
+		x: 64
+		y: 0
+		width: 16
+		height: 34
+
+	viewinfo:
+		x: 80
+		y: 0
+		width: 16
+		height: 34
+
 window.Brew.config = 
-	screen_tiles_width: 42
-	screen_tiles_height: 24
-	level_tiles_width: 42 # 64
-	level_tiles_height: 24
-	hud_tiles_width: 42
-	hud_tiles_height: 4
-	footer_tiles_width: 42
-	footer_tiles_height: 1
+	level_tiles_width: Brew.panels.game.width # * 2
+	level_tiles_height: Brew.panels.game.height #* 2
+
 	mighty_damage_mult: 2
 	defended_block: 2
-	monsters_per_level: 10
+	monsters_per_level: 20
 	items_per_level: 5
 	chance_life_flask: 0.5
 	chance_vigor_flask: 0.5
@@ -19,22 +51,8 @@ window.Brew.config =
 	include_monsters_depth_lag: 2
 	include_items_depth_lag: 2
 
-	window:
-		messages:
-			width: 46
-			height: 3
-		game:
-			width: 46
-			height: 22
-		footer:
-			width: 46
-			height: 1
-		playerinfo:
-			width: 17
-			height: 26
-		viewinfo:
-			width: 17
-			height: 26
+	animation_speed: 25
+
 
 	max_depth: 9
 	sync:
@@ -48,21 +66,25 @@ window.Brew.colors =
 	white: [255, 255, 255]
 	black: [20, 20, 20]
 	normal: [192, 192, 192]
+	half_white: [128, 128, 128]
 
-	memory_bg: [30, 30, 30] 
-	memory: [45, 45, 45] 
+	# memory_bg: [30, 30, 30] 
+	# memory: [45, 45, 100] 
+	memory_bg: [20, 20, 20] 
+	memory: [104, 120, 120]
 	pair_shade: [0, 51, 102]
 
 	grey: [144,144,144]
 	mid_grey: [104, 104, 104]
 	dark_grey: [60, 60, 60]
+	darker_grey: [40, 40, 40]
 
 	red: [255, 0, 0]
 	green: [0, 255, 0]
 	blue: [0, 0, 255]
 	orange: [255,165,0]
 	hf_orange: [255, 126, 0]
-	brown: [153, 51, 0]
+	brown: [153, 102, 0]
 	purple: [51, 0, 153]
 	light_blue: [51, 153, 255]
 	yellow: [200, 200, 0]
@@ -72,6 +94,8 @@ window.Brew.colors =
 	pink: [255, 62, 150]
 	cyan: [0, 205, 205]
 	eggplant: [97, 64, 81]
+	torch: [150, 75, 30]
+	water: [51, 153, 255]
 
 	violet: [247,142,246]
 
@@ -115,6 +139,7 @@ window.Brew.unicode =
 	not_sign: "\u00ac"
 	rev_not_sign: "\u2310"
 	degree: "\u00b0"
+	omega: "\u03a9"
 
 window.Brew.flags = 
 	keeps_distance: "keeps distance"
@@ -318,7 +343,7 @@ window.Brew.ability =
 
 	"warcry_":
 		name: "Warcry"
-		range: 50
+		range: 0
 		pathing: false
 		needs_target: false
 		pair: true

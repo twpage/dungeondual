@@ -7,37 +7,37 @@ window.Brew.item_def =
 		name: "Flask"
 		flaskType: Brew.flaskTypes.fire
 		group: Brew.groups.FLASK
-		color: Brew.colors.white
+		color: Brew.colors.yellow
 
 	FLASK_HEALTH:
 		name: "Flask"
 		flaskType: Brew.flaskTypes.health
 		group: Brew.groups.FLASK
-		color: Brew.colors.white
+		color: Brew.colors.yellow
 
 	FLASK_WEAKNESS:
 		name: "Flask"
 		flaskType: Brew.flaskTypes.weakness
 		group: Brew.groups.FLASK
-		color: Brew.colors.white
+		color: Brew.colors.yellow
 
 	FLASK_MIGHT:
 		name: "Flask"
 		flaskType: Brew.flaskTypes.might
 		group: Brew.groups.FLASK
-		color: Brew.colors.white
+		color: Brew.colors.yellow
 
 	FLASK_VIGOR:
 		name: "Flask"
 		flaskType: Brew.flaskTypes.vigor
 		group: Brew.groups.FLASK
-		color: Brew.colors.white
+		color: Brew.colors.yellow
 
 	FLASK_INVISIBLE:
 		name: "Flask"
 		flaskType: Brew.flaskTypes.invisible
 		group: Brew.groups.FLASK
-		color: Brew.colors.white
+		color: Brew.colors.yellow
 
 	##############################
 	## ARMOR
@@ -182,14 +182,14 @@ window.Brew.item_def =
 		damage: 5
 		min_depth: 6
 
-	WPN_FIRESWORD:
-		name: "Flaming Sword"
-		group: Brew.groups.WEAPON
-		color: Brew.colors.yellow
-		description: "An enourmous steel blade wreathed in flame. Somehow it doesn't burn you."
-		flags: [Brew.flags.weapon_burning]
-		damage: 6
-		min_depth: 8
+	# WPN_FIRESWORD:
+	# 	name: "Flaming Sword"
+	# 	group: Brew.groups.WEAPON
+	# 	color: Brew.colors.yellow
+	# 	description: "An enourmous steel blade wreathed in flame. Somehow it doesn't burn you."
+	# 	flags: [Brew.flags.weapon_burning]
+	# 	damage: 6
+	# 	min_depth: 8
 		
 	##############################
 	## OTHER
@@ -214,5 +214,5 @@ window.Brew.item_def =
 		group: Brew.groups.CORPSE
 		# code: "?"
 		description: "The remains of a King's army soldier."
-		color: Brew.colors.dark_grey
+		color: Brew.colors.normal
 		min_depth: 100

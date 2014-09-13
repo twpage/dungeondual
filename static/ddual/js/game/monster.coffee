@@ -4,7 +4,8 @@ window.Brew.monster_def =
 		group: "player"
 		code: '@'
 		color: Brew.colors.white # hf_orange
-		light_source: Brew.colors.white
+		light_source: Brew.colors.half_white
+		sight_radius: 20
 		rank: 0
 		attack_range: 1
 		hp: 5

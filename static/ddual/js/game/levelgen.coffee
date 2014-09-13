@@ -42,10 +42,15 @@ class window.Brew.LevelGenerator
 		
 		# generate map terrain
 		level = new Brew.Level(depth, width, height, levelgen_options)
-		buildDungeon(level, dungeon_options)
+		[success, rooms, connections] = buildDungeon(level, dungeon_options)
+		if not success
+			throw "Critical error while building dungeon"
 
-		# @makeExciting(level)
+		@makeExciting(level)
 		level.calcTerrainNavigation()
+		@setupRoomDecoration(level, rooms)
+
+		@growFlora(level, level.getRandomWalkableLocation(), [], 0, 8)
 
 		setupPortals(level)
 		setupMonsters(level)
@@ -57,6 +62,99 @@ class window.Brew.LevelGenerator
 		
 		return level
 
+	setupRoomDecoration: (level, rooms) ->
+		for own room_id, room of rooms
+			put_torch = true #ROT.RNG.getUniform() < 0.33
+			put_statue = ROT.RNG.getUniform() < 0.15
+			
+			if put_torch
+				torch_xy = @findTorchLocation(level, room)
+				if torch_xy?
+					console.log(torch_xy)
+					level.setTerrainAt(torch_xy, Brew.terrainFactory("WALL_TORCH"))
+				else
+					console.log("couldn't find torch spot")
+
+			if put_statue
+				floor_xy = room.getFloors().random()
+				level.setTerrainAt(floor_xy, Brew.terrainFactory("STATUE"))
+
+	findTorchLocation: (level, room) ->
+		# return a good xy coordinate for a wall torch
+		found_spot = false
+		tries = 0
+		torch_xy = null
+		floor_list = room.getFloors()
+
+		while tries < 10
+			wall_xy = room.getWalls().random()
+			t = level.getTerrainAt(wall_xy)
+			if t? and Brew.utils.isTerrain(t, "WALL")
+				# check all surrounding open tiles and make sure they are in the same room
+
+				non_room_tiles = 0
+				room_tiles = 0
+
+				for neighbor_xy in wall_xy.getSurrounding()
+					next_t = level.getTerrainAt(neighbor_xy)
+					
+					if next_t? and (not next_t.blocks_vision)
+						if next_t in floor_list
+							room_tiles += 1
+						else
+							non_room_tiles += 1
+
+				console.log(room_tiles, non_room_tiles)
+				if non_room_tiles == 0
+					torch_xy = wall_xy
+					break
+
+				# open_tiles = 0
+				# for neighbor_xy in wall_xy.getAdjacent()
+				# 	next_t = level.getTerrainAt(neighbor_xy)
+					
+				# 	if next_t? and not next_t.blocks_vision
+				# 		open_tiles += 1
+
+				# if open_tiles == 1
+				# 	torch_xy = wall_xy
+				# 	break
+
+			tries += 1
+
+		return torch_xy
+
+	growFlora: (level, spawn_xy, visited_list, my_step, max_steps) ->
+		# use a flood-fill mechanism to 'grow' dungeon features like fungus, etc
+
+		# stop condition: reached max growth
+		if my_step >= max_steps
+			return false
+
+		# stop condition: already something here
+		if spawn_xy in visited_list
+			return false
+
+		# stop condition: current spot is not generic floor tile
+		t = level.getTerrainAt(spawn_xy)
+		if not t?
+			return false
+
+		if not Brew.utils.isTerrain(t, "FLOOR")
+			return false
+
+		# create some growth
+		level.setTerrainAt(spawn_xy, Brew.terrainFactory("FLOOR_MOSS"))
+
+		# add this point to our visited list
+		visited_list.push(spawn_xy)
+
+		# check neighbors
+		for neighbor_xy in spawn_xy.getAdjacent()
+			@growFlora(level, neighbor_xy, visited_list, my_step + 1, max_steps)
+
+		return true
+
 	makeExciting: (level) ->
 		# add chasms using simplex noise
 
@@ -66,17 +164,19 @@ class window.Brew.LevelGenerator
 			for y in [0..level.height-1]
 				val = noise.get(x/20, y/20)
 				xy = new Coordinate(x, y)
-				# t = level.getTerrainAt(xy)
+				t = level.getTerrainAt(xy)
 
-				if val >= 0.6
-					r = ~~(val * 255)
-					g = 0
+				if val >= 0.75
+					# r = ~~(val * 255)
+					# g = 0
 					# level.setTerrainAt(xy, Brew.terrainFactory("CHASM"))
 					level.setTerrainAt(xy, Brew.terrainFactory("STONE"))
 
-				else if val <= -0.60
-					r = 0
-					g = ~~(-val * 255)
+				else if val <= -0.75
+					# r = 0
+					# g = ~~(-val * 255)
+					if not Brew.utils.isTerrain(t, "WALL")
+						level.setTerrainAt(xy, Brew.terrainFactory("SHALLOW_POOL"))
 
 				# r = ~~(if val > 0 then val*255 else 0)
 				# g = ~~(if val < 0 then -val*255 else 0)
@@ -113,6 +213,9 @@ class window.Brew.LevelGenerator
 					corpse_xy = @getNearby(level, xy)
 					if corpse_xy?
 						level.setItemAt(corpse_xy, Brew.itemFactory("ARMY_CORPSE"))
+						splat = Brew.utils.createSplatter(corpse_xy, 4)
+						for own key, intensity of splat
+							level.setFeatureAt(keyToCoord(key), Brew.featureFactory("BLOOD"))
 
 		# extra potions
 		extra_flasks = Math.floor(level.depth/2)+1
@@ -217,7 +320,7 @@ buildDungeon = (level, options) ->
 		door_status = if ROT.RNG.getUniform() < 0.75 then "DOOR_CLOSED" else "DOOR_OPEN"
 		level.setTerrainAt(connection.door_xy, Brew.terrainFactory(door_status))
 	
-	return true
+	return [true, rooms, connections]
 	
 getOffsetXY = (side) ->
 	offset_xy = null

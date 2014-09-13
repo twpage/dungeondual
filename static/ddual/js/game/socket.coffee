@@ -149,7 +149,7 @@ class window.Brew.Socket
 
 		
 	sendMessage: (msg) ->
-		mySocket.send(JSON.stringify(msg))
+		# mySocket.send(JSON.stringify(msg))
 		true
 
 	on_open: () ->

@@ -278,12 +278,14 @@ class window.Brew.Game
 
 	msg: (text) ->
 		console.log(text)
-		@ui.drawMessage(text)
+		# @addMessage(text)
+		@ui.drawMessagesPanel(text)
 
 	msgFrom: (monster, text) ->
 		# only show message if playe can see the monster
 		if @my_player.hasKnowledgeOf(monster)
 			@msg(text)
+
 	doPlayerMoveTowards: (destination_xy) ->
 		# called to move the player from a mouse click
 
@@ -363,9 +365,9 @@ class window.Brew.Game
 			@my_level.setTerrainAt(terrain.coordinates, Brew.terrainFactory("DOOR_CLOSED"))
 			return true
 			
-		else if Brew.utils.isTerrain(terrain, "ALTAR") and not bump
-			@msg("Your puny Gods cannot help you!")
-			return false
+		# else if Brew.utils.isTerrain(terrain, "ALTAR") and not bump
+		# 	@msg("Your puny Gods cannot help you!")
+		# 	return false
 			
 		@msg("You aren't sure how to apply that " + terrain.name)
 		return false
@@ -406,7 +408,7 @@ class window.Brew.Game
 			if item.group == Brew.groups.INFO
 				@ui.popup.context = "info"
 				@ui.popup.item = item
-				@ui.showInfoScreen(Brew.config.screen_tiles_width - 1, Brew.config.screen_tiles_height - 1)
+				@ui.showInfoScreen()
 			
 			# corpse!
 			else if item.group == Brew.groups.CORPSE
@@ -593,9 +595,6 @@ class window.Brew.Game
 				@msg("The Time Orb glows faintly")
 			else
 				@msg("The Time Orb pulses with light")
-			# applier.toggleFlag(Brew.flags.see_all)
-			# @ui.popup.context = "timeorb"
-			# @ui.showTimeOrbScreen()
 			
 		else if item.group == Brew.groups.FLASK
 			@msg("You open #{@getItemNameFromCatalog(item)}...")
@@ -829,6 +828,14 @@ class window.Brew.Game
 		
 		@ui.drawHudAll()
 
+		# draw some gore on each hit
+		splat = Brew.utils.createSplatter(defender.coordinates, 3)
+		for own key, intensity of splat
+			xy = keyToCoord(key)
+			t = @my_level.getTerrainAt(xy)
+			if t.show_gore
+				@my_level.setFeatureAt(xy, Brew.featureFactory("BLOOD", {intensity: intensity}))
+
 		# animate melee attacks when the defender doesn't die
 		if is_melee and not is_dead
 			flash_color = Brew.colors.red
@@ -862,7 +869,6 @@ class window.Brew.Game
 				@finishKillPlayer(json_response)
 			dataType: "json"
 		)
-		
 
 	finishKillPlayer: (json_response) ->
 		@ui.showDied()
@@ -894,11 +900,6 @@ class window.Brew.Game
 	finishVictory: (json_response) ->
 		@ui.showVictory()
 
-		# splat = Brew.utils.createSplatter(victim.coordinates, 4)
-		# for own key, intensity of splat
-		# 	feature = if ROT.RNG.getUniform() < 0.15 then "BRAINS" else "BLOOD"
-		# 	@my_level.setFeatureAt(keyToCoord(key), Brew.featureFactory(feature, {intensity: intensity}))
-		
 	attackEffects: (attacker, defender, attack_wpn, is_melee, damage) ->
 		# attack_wpn = attacker.inventory?.getEquipped(Brew.equip_slot.melee)
 		defender_is_player = Brew.utils.compareThing(defender, @my_player)
@@ -966,7 +967,7 @@ class window.Brew.Game
 		@finishEndPlayerTurn({update_all: animation.over_saturate, over_saturate: animation.over_saturate})
 		setTimeout(=>
 			@nextTurn()
-		50)
+		Brew.config.animation_speed)
 		return
 
 	nextTurn: () ->
@@ -1119,29 +1120,25 @@ class window.Brew.Game
 
 		else
 			selected_abil = @my_player.abilities[idx]
-			current_abil = @my_player.active_ability
-			
-			if current_abil == selected_abil
-				# selected same one twice, turn off
-				@doPlayerDisableAbility(selected_abil)
-			else
-				# selected new one
-				# turn off old one, if applicable
-				if current_abil?
-					@doPlayerDisableAbility(current_abil)
-				
-				# turn on new one
-				@doPlayerEnableAbility(selected_abil)
+			@doPlayerAbility(selected_abil, keycode)
 
-	doPlayerEnableAbility: (ability) ->
-		@my_player.active_ability = ability
-		@msg("Using #{Brew.ability[ability].name}, click to activate.")
-		@ui.drawHudAll()
+	doPlayerAbility: (ability, keycode) ->
+		# @my_player.active_ability = ability
+		@ui.showTargeting(ability, keycode)
 
-	doPlayerDisableAbility: (ability) ->
-		@my_player.active_ability = null
-		console.log("No longer using #{Brew.ability[ability].name}.")
-		@ui.drawHudAll()
+	# doPlayerDisableAbility: (ability) ->
+	# 	@my_player.active_ability = null
+	# 	console.log("No longer using #{Brew.ability[ability].name}.")
+	# 	@ui.drawHudAll()
+
+	doTargetingAt: (ability, target_xy) ->
+		[can_use, data] = @abil.canUseAt(ability, target_xy)
+		if not can_use
+			@msg("#{data}")
+			return false
+
+		@abil.execute(ability, target_xy, false)
+		return true
 
 	checkForIncoming: () ->
 		# called right before player turn
