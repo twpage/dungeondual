@@ -15,7 +15,8 @@
       bgcolor_randomize: [0, 5, 5],
       blocks_walking: true,
       blocks_vision: true,
-      blocks_flying: true
+      blocks_flying: true,
+      description: "rough-hewn rock wall"
     },
     WALL_TORCH: {
       name: 'Wall Torch',
@@ -26,7 +27,8 @@
       light_source: Brew.colors.torch,
       blocks_walking: true,
       blocks_vision: true,
-      blocks_flying: true
+      blocks_flying: true,
+      description: "a flickering torch"
     },
     FLOOR: {
       name: 'Cavern Floor',
@@ -34,7 +36,9 @@
       color: Brew.colors.normal,
       bgcolor: Brew.colors.dark_grey,
       bgcolor_randomize: [0, 8, 8],
-      show_gore: true
+      show_gore: true,
+      description: "smoothed cavern floor",
+      walkover: "You step onto the weathered cavern floor"
     },
     STONE: {
       name: 'Crumbling Stone',
@@ -42,7 +46,9 @@
       color: Brew.colors.normal,
       bgcolor: Brew.colors.dark_grey,
       bgcolor_randomize: [0, 0, 2],
-      show_gore: true
+      show_gore: true,
+      description: "rough stone floor",
+      walkover: "Rocks and grit crunch under your feet"
     },
     SHALLOW_POOL: {
       name: 'Shallow Water',
@@ -50,24 +56,32 @@
       color: Brew.colors.white,
       color_randomize: [25, 25, 50],
       bgcolor: Brew.colors.water,
-      bgcolor_randomize: [25, 25, 0]
+      bgcolor_randomize: [25, 25, 0],
+      description: "a shallow pool of water",
+      walkover: "You splash through shallow water"
     },
     CHASM: {
       name: 'Chasm',
       code: ':',
       color: [220, 220, 220],
       bgcolor: Brew.colors.eggplant,
-      blocks_walking: true
+      blocks_walking: true,
+      description: "a deep chasm dropping off to the darkness below",
+      walkover: "You float above the dark chasm below"
     },
     STAIRS_DOWN: {
       name: "Stairs Down",
       code: '>',
-      color: Brew.colors.white
+      color: Brew.colors.white,
+      description: "a rough-hewn set of stairs leading deeper",
+      walkover: "You step around some stairs leading down into darkness"
     },
     STAIRS_UP: {
       name: "Stairs Up",
       code: '<',
-      color: Brew.colors.white
+      color: Brew.colors.white,
+      desc: "a rough-hewn set of stairs leading back to the surface",
+      walkover: "You step around some stairs leading upwards"
     },
     DOOR_CLOSED: {
       name: "Closed Door",
@@ -78,20 +92,30 @@
       blocks_walking: true,
       can_open: true,
       blocks_flying: true,
-      can_apply: true
+      can_apply: true,
+      description: "a sturdy wooden door, shut tight"
     },
     DOOR_OPEN: {
       name: "Open Door",
       code: '-',
       color: Brew.colors.yellow,
       bgcolor: Brew.colors.brown,
-      can_apply: true
+      can_apply: true,
+      description: "a sturdy wooden door, wide open",
+      walkover: "You pass through the doorway"
     },
     DOOR_BURNT: {
       name: "Burnt Door",
       code: '-',
       color: Brew.colors.dark_grey,
-      bgcolor: Brew.colors.normal
+      bgcolor: Brew.colors.normal,
+      description: "The charred remains of a wooden door",
+      walkover: "You step through the burnt frame"
+    },
+    ALTAR: {
+      name: "Altar",
+      code: '_',
+      color: Brew.colors.white
     },
     STATUE: {
       name: 'Statue',
@@ -102,14 +126,18 @@
       color_randomize: [5, 5, 10],
       blocks_walking: true,
       blocks_vision: true,
-      blocks_flying: true
+      blocks_flying: true,
+      description: "an imposing stone statue"
     },
     FLOOR_MOSS: {
       name: 'Mossy Stone',
       code: '"',
-      bgcolor: [40, 80, 40],
-      bgcolor_randomize: [5, 10, 5],
-      color: Brew.colors.normal
+      color: [51, 153, 0],
+      color_randomize: [5, 10, 0],
+      bgcolor: Brew.colors.dark_grey,
+      bgcolor_randomize: [0, 8, 8],
+      description: "moss-covered stone tiles",
+      walkover: "Your footsteps barely make any noise on the mossy stone"
     }
   };
 

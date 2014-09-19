@@ -87,12 +87,11 @@
       for (room_id in rooms) {
         if (!__hasProp.call(rooms, room_id)) continue;
         room = rooms[room_id];
-        put_torch = true;
+        put_torch = ROT.RNG.getUniform() < 0.33;
         put_statue = ROT.RNG.getUniform() < 0.15;
         if (put_torch) {
           torch_xy = this.findTorchLocation(level, room);
           if (torch_xy != null) {
-            console.log(torch_xy);
             level.setTerrainAt(torch_xy, Brew.terrainFactory("WALL_TORCH"));
           } else {
             console.log("couldn't find torch spot");
@@ -109,7 +108,7 @@
     };
 
     LevelGenerator.prototype.findTorchLocation = function(level, room) {
-      var floor_list, found_spot, neighbor_xy, next_t, non_room_tiles, room_tiles, t, torch_xy, tries, wall_xy, _i, _len, _ref;
+      var floor_list, found_spot, neighbor_xy, next_t, open_tiles, t, torch_xy, tries, wall_xy, _i, _len, _ref;
       found_spot = false;
       tries = 0;
       torch_xy = null;
@@ -118,22 +117,16 @@
         wall_xy = room.getWalls().random();
         t = level.getTerrainAt(wall_xy);
         if ((t != null) && Brew.utils.isTerrain(t, "WALL")) {
-          non_room_tiles = 0;
-          room_tiles = 0;
-          _ref = wall_xy.getSurrounding();
+          open_tiles = 0;
+          _ref = wall_xy.getAdjacent();
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             neighbor_xy = _ref[_i];
             next_t = level.getTerrainAt(neighbor_xy);
-            if ((next_t != null) && (!next_t.blocks_vision)) {
-              if (__indexOf.call(floor_list, next_t) >= 0) {
-                room_tiles += 1;
-              } else {
-                non_room_tiles += 1;
-              }
+            if ((next_t != null) && !next_t.blocks_vision) {
+              open_tiles += 1;
             }
           }
-          console.log(room_tiles, non_room_tiles);
-          if (non_room_tiles === 0) {
+          if (open_tiles === 1) {
             torch_xy = wall_xy;
             break;
           }

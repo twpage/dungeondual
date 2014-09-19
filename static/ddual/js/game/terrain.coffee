@@ -17,6 +17,8 @@ window.Brew.terrain_def =
 		blocks_walking: true
 		blocks_vision: true
 		blocks_flying: true
+
+		description: "rough-hewn rock wall"
 		
 	WALL_TORCH:
 		name: 'Wall Torch'
@@ -31,6 +33,8 @@ window.Brew.terrain_def =
 		blocks_vision: true
 		blocks_flying: true
 
+		description: "a flickering torch"
+
 	FLOOR:
 		name: 'Cavern Floor'
 		code: '.'
@@ -38,6 +42,9 @@ window.Brew.terrain_def =
 		bgcolor: Brew.colors.dark_grey
 		bgcolor_randomize: [0, 8, 8]
 		show_gore: true
+
+		description: "smoothed cavern floor"
+		walkover: "You step onto the weathered cavern floor"
 
 	STONE:
 		name: 'Crumbling Stone'
@@ -47,6 +54,9 @@ window.Brew.terrain_def =
 		bgcolor_randomize: [0, 0, 2]
 		show_gore: true
 
+		description: "rough stone floor"
+		walkover: "Rocks and grit crunch under your feet"
+
 	SHALLOW_POOL:
 		name: 'Shallow Water'
 		code: '~'
@@ -54,6 +64,9 @@ window.Brew.terrain_def =
 		color_randomize: [25, 25, 50]
 		bgcolor: Brew.colors.water
 		bgcolor_randomize: [25, 25, 0]
+
+		description: "a shallow pool of water"
+		walkover: "You splash through shallow water"
 
 	CHASM:
 		name: 'Chasm'
@@ -64,15 +77,22 @@ window.Brew.terrain_def =
 		# bgcolor_randomize: [0, 5, 5]
 		blocks_walking: true
 
+		description: "a deep chasm dropping off to the darkness below"
+		walkover: "You float above the dark chasm below"
+
 	STAIRS_DOWN:
 		name: "Stairs Down"
 		code: '>'
 		color: Brew.colors.white
+		description: "a rough-hewn set of stairs leading deeper"
+		walkover: "You step around some stairs leading down into darkness"
 		
 	STAIRS_UP:
 		name: "Stairs Up"
 		code: '<'
 		color: Brew.colors.white
+		desc: "a rough-hewn set of stairs leading back to the surface"
+		walkover: "You step around some stairs leading upwards"
 		
 	DOOR_CLOSED:
 		name: "Closed Door"
@@ -86,6 +106,8 @@ window.Brew.terrain_def =
 		blocks_flying: true
 		can_apply: true
 
+		description: "a sturdy wooden door, shut tight"
+
 	DOOR_OPEN:
 		name: "Open Door"
 		code: '-'
@@ -93,6 +115,9 @@ window.Brew.terrain_def =
 		bgcolor: Brew.colors.brown
 
 		can_apply: true
+
+		description: "a sturdy wooden door, wide open"
+		walkover: "You pass through the doorway"
 		
 	DOOR_BURNT:
 		name: "Burnt Door"
@@ -101,10 +126,13 @@ window.Brew.terrain_def =
 		# bgcolor: [52, 65, 82]
 		bgcolor: Brew.colors.normal
 
-	# ALTAR:
-	# 	name: "Altar"
-	# 	code: '_'
-	# 	color: Brew.colors.white
+		description: "The charred remains of a wooden door"
+		walkover: "You step through the burnt frame"
+
+	ALTAR:
+		name: "Altar"
+		code: '_'
+		color: Brew.colors.white
 	# 	can_apply: true
 		
 	STATUE:
@@ -120,11 +148,18 @@ window.Brew.terrain_def =
 		blocks_vision: true
 		blocks_flying: true
 
+		description: "an imposing stone statue"
+
 	FLOOR_MOSS:
 		name: 'Mossy Stone'
 		code: '"'
-		# color: [220, 220, 220]
-		# bgcolor: [52, 65, 82]
-		bgcolor: [40, 80, 40]
-		bgcolor_randomize: [5, 10, 5]
-		color: Brew.colors.normal
+		
+		color: [51, 153, 0]
+		color_randomize: [5, 10, 0]
+		
+		bgcolor: Brew.colors.dark_grey
+		bgcolor_randomize: [0, 8, 8]
+
+		description: "moss-covered stone tiles"
+		walkover: "Your footsteps barely make any noise on the mossy stone"
+

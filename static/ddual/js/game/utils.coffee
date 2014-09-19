@@ -142,6 +142,9 @@ window.Brew.utils =
 	compareDef: (thing, definition_name) ->
 		return thing.def_id == definition_name
 
+	sameDef: (thing_a, thing_b) ->
+		return thing_a.def_id == thing_b.def_id
+
 	# rgb
 	minColorRGB: (rgb_one, rgb_two) ->
 		return [
@@ -168,11 +171,7 @@ window.Brew.utils =
 			Math.max(0, Math.min(255, rgb_color[2] + random_spread[2]))
 		]
 
-		# if rgb_color[0] == 51
-		# 	console.log(rgb_color, maxmin_spread, random_spread, new_color)
-
 		return new_color
-
 
 	# math / random
 	dist2d: (xy_a, xy_b) ->
@@ -265,6 +264,37 @@ window.Brew.utils =
 			myArray[j] = temp_i
 			
 		return myArray
+
+	getOffsetFromKey: (keycode) ->
+		# return an offset coordinate object given a keypress
+
+		offset_xy = null
+
+		if keycode in Brew.keymap.MOVE_LEFT
+			offset_xy = Brew.directions.w
+
+		else if keycode in Brew.keymap.MOVE_RIGHT
+			offset_xy = Brew.directions.e
+
+		else if keycode in Brew.keymap.MOVE_UP
+			offset_xy = Brew.directions.n
+
+		else if keycode in Brew.keymap.MOVE_DOWN
+			offset_xy = Brew.directions.s
+
+		else if keycode in Brew.keymap.MOVE_UPLEFT
+			offset_xy = Brew.directions.nw 
+
+		else if keycode in Brew.keymap.MOVE_UPRIGHT
+			offset_xy = Brew.directions.ne 
+
+		else if keycode in Brew.keymap.MOVE_DOWNLEFT
+			offset_xy = Brew.directions.sw
+
+		else if keycode in Brew.keymap.MOVE_DOWNRIGHT
+			offset_xy = Brew.directions.se
+
+		return offset_xy
 
 	getOffsetInfo: (offset_xy) ->
 		info = null

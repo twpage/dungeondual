@@ -64,13 +64,12 @@ class window.Brew.LevelGenerator
 
 	setupRoomDecoration: (level, rooms) ->
 		for own room_id, room of rooms
-			put_torch = true #ROT.RNG.getUniform() < 0.33
+			put_torch = ROT.RNG.getUniform() < 0.33
 			put_statue = ROT.RNG.getUniform() < 0.15
 			
 			if put_torch
 				torch_xy = @findTorchLocation(level, room)
 				if torch_xy?
-					console.log(torch_xy)
 					level.setTerrainAt(torch_xy, Brew.terrainFactory("WALL_TORCH"))
 				else
 					console.log("couldn't find torch spot")
@@ -92,33 +91,16 @@ class window.Brew.LevelGenerator
 			if t? and Brew.utils.isTerrain(t, "WALL")
 				# check all surrounding open tiles and make sure they are in the same room
 
-				non_room_tiles = 0
-				room_tiles = 0
-
-				for neighbor_xy in wall_xy.getSurrounding()
+				open_tiles = 0
+				for neighbor_xy in wall_xy.getAdjacent()
 					next_t = level.getTerrainAt(neighbor_xy)
 					
-					if next_t? and (not next_t.blocks_vision)
-						if next_t in floor_list
-							room_tiles += 1
-						else
-							non_room_tiles += 1
+					if next_t? and not next_t.blocks_vision
+						open_tiles += 1
 
-				console.log(room_tiles, non_room_tiles)
-				if non_room_tiles == 0
+				if open_tiles == 1
 					torch_xy = wall_xy
 					break
-
-				# open_tiles = 0
-				# for neighbor_xy in wall_xy.getAdjacent()
-				# 	next_t = level.getTerrainAt(neighbor_xy)
-					
-				# 	if next_t? and not next_t.blocks_vision
-				# 		open_tiles += 1
-
-				# if open_tiles == 1
-				# 	torch_xy = wall_xy
-				# 	break
 
 			tries += 1
 

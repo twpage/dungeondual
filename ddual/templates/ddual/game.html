@@ -9,11 +9,12 @@
 	<link href="{% static "ddual/css/robocaptain.css" %}" rel="stylesheet" type="text/css" />
 
     <script src="{% static "ddual/js/lib/jquery.min.js" %}"></script>
-	<script src="{% static "ddual/js/lib/rot.min.js" %}"></script>
+	<script src="{% static "ddual/js/lib/rot.js" %}"></script>
 	<script src="{% static "ddual/js/lib/gridmangler.js" %}"></script>
 	
 	<script src="{% static "ddual/js/game/_top.js" %}"></script>
 	<script src="{% static "ddual/js/game/config.js" %}"></script>
+	<script src="{% static "ddual/js/game/utils.js" %}"></script>
 	<script src="{% static "ddual/js/game/keymap.js" %}"></script>
 
 	<script src="{% static "ddual/js/game/socket.js" %}"></script>
@@ -23,7 +24,7 @@
 	<script src="{% static "ddual/js/game/brew_interface.js" %}"></script>
 	<script src="{% static "ddual/js/game/brew_game.js" %}"></script>
 	<script src="{% static "ddual/js/game/brew_abilities.js" %}"></script>
-	<script src="{% static "ddual/js/game/utils.js" %}"></script>
+
 	<script src="{% static "ddual/js/game/terrain.js" %}"></script>
 	<script src="{% static "ddual/js/game/feature.js" %}"></script>
 	<script src="{% static "ddual/js/game/item.js" %}"></script>
@@ -63,16 +64,13 @@
 		$(document).ready(function ( ) {
 
 			$(document).on("keydown", function (e) {
-    			if (e.which === 8 && !$(e.target).is("input, textarea")) {
+				// sorry, preventing default behavior for tab and backspace
+    			if ((e.which === 8 && !$(e.target).is("input, textarea")) || (e.keyCode === 9)) {
         			e.preventDefault();
     			}
 			});
 
-			// startGame(Brew.hero_types.warrior);
-
-			// window.onbeforeunload = function() {
-   			//     return "Dude, are you sure you want to leave? Think of the kittens!";
-   			//  };
+			startGame(Brew.hero_types.warrior);
 
 		}); // end document.ready
 
@@ -241,8 +239,10 @@
 		</tr>
 
 	</table>
-	<!-- <select id="id_select_debug"/> -->
-	<div id="id_debug_footer"></div>
+	
+	<div id="id_debug_footer">
+		<select id="id_select_debug"/>
+	</div>
 
 </body>
 </html>

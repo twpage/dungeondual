@@ -206,7 +206,7 @@ class window.Brew.AbilityCode
 		@gameLevel().removeMonsterAt(center_xy)
 		@game.scheduler.remove(target)
 		@game.ui.drawMapAt(center_xy)
-		@game.addAnimation(new Brew.ShinyAnimation(@gamePlayer(), Brew.colors.violet))
+		@game.addAnimation(new Brew.ShinyAnimation(center_xy, Brew.colors.violet))
 
 		return true 
 
@@ -235,7 +235,7 @@ class window.Brew.AbilityCode
 			message = "You roar a terrifying war cry!!"
 
 		@game.msg(message)
-		@game.addAnimation(new Brew.ShinyAnimation(@gamePlayer(), Brew.colors.hf_orange))
+		@game.addAnimation(new Brew.ShinyAnimation(@gamePlayer().coordinates, Brew.colors.hf_orange))
 
 		for thing_id in @gamePlayer().knowledge
 			m = @gameLevel().getMonsterById(thing_id)
@@ -257,7 +257,7 @@ class window.Brew.AbilityCode
 			message = "You take a moment to ready your defenses"
 
 		@game.msg(message)
-		@game.addAnimation(new Brew.ShinyAnimation(@gamePlayer(), Brew.colors.red))
+		@game.addAnimation(new Brew.ShinyAnimation(@gamePlayer().coordinates, Brew.colors.red))
 		@game.setFlagWithCounter(@gamePlayer(), Brew.flags.defended, 10)
 
 		return true

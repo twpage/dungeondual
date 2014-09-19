@@ -165,7 +165,7 @@
       var lowest_value, lowest_xy, neighbor_xy, temp_value, _i, _len, _ref;
       lowest_xy = location_xy;
       lowest_value = pathmap[location_xy.toKey()];
-      _ref = location_xy.getAdjacent();
+      _ref = location_xy.getSurrounding();
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         neighbor_xy = _ref[_i];
         temp_value = pathmap[neighbor_xy.toKey()];

@@ -63,11 +63,11 @@ window.Brew.item_def =
 		name: "Splint Mail"
 		group: Brew.groups.ARMOR
 		color: Brew.colors.yellow
-		description: "Strips of metal woven onto sturdy leather armor. Flexible yet strong."
+		description: "Strips of metal woven onto sturdy leather armor. Flexible yet strong. According to the D&D manual, at least."
 		block: 3
 		min_depth: 3
 		
-	ARMOR_SPLINT:
+	ARMOR_PLATE:
 		name: "Plate Mail"
 		group: Brew.groups.ARMOR
 		color: Brew.colors.yellow
@@ -92,10 +92,16 @@ window.Brew.item_def =
 		description: "You look like a damned viking."
 		
 	HAT_GOGGLES:
-		name: "Science Goggles"
+		name: "Pair of Science Goggles"
 		group: Brew.groups.HAT
 		color: Brew.colors.green
 		description: "Zee goggles, zey do nozzink!!"
+
+	GLADIATOR_HELM:
+		name: "Glatiator Helm"
+		group: Brew.groups.HAT
+		color: Brew.colors.yellow
+		description: "ARE YOU NOT ENTERTAINED?"
 		
 	##############################
 	## WEAPONS
@@ -168,7 +174,7 @@ window.Brew.item_def =
 		name: "Broadsword"
 		group: Brew.groups.WEAPON
 		color: Brew.colors.yellow
-		description: "An enourmous steel blade that requires too hands to swing. It's damage is unrivaled."
+		description: "An enourmous steel blade that requires two hands to swing. It's damage is unrivaled."
 		flags: []
 		damage: 6
 		min_depth: 6

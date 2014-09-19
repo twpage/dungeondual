@@ -56,9 +56,9 @@ class window.Brew.Thing
 	getFlagCounters: () -> 
 		return (f for own f, v of @flagcounters)
 
-	setFlagCounter: (flag, stop_turn) ->
+	setFlagCounter: (flag, effect_turns, stop_turn) ->
 		@setFlag(flag)
-		@flagcounters[flag] = stop_turn
+		@flagcounters[flag] = [effect_turns, stop_turn]
 		true
 
 	removeFlagCounter: (flag) ->
@@ -67,8 +67,11 @@ class window.Brew.Thing
 		true
 
 	getFlagCount: (flag) ->
-		return @flagcounters[flag]
+		return @flagcounters[flag][1]
 	
+	getFlagCountDuration: (flag) ->
+		return @flagcounters[flag][0]
+
 	# stat
 	createStat: (stat_name, init_value) ->
 		@stats[stat_name] = new Brew.Stat(stat_name, init_value)

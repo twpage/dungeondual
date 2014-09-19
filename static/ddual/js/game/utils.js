@@ -216,6 +216,9 @@
     compareDef: function(thing, definition_name) {
       return thing.def_id === definition_name;
     },
+    sameDef: function(thing_a, thing_b) {
+      return thing_a.def_id === thing_b.def_id;
+    },
     minColorRGB: function(rgb_one, rgb_two) {
       return [Math.min(rgb_one[0], rgb_two[0]), Math.min(rgb_one[1], rgb_two[1]), Math.min(rgb_one[2], rgb_two[2])];
     },
@@ -324,6 +327,28 @@
         myArray[j] = temp_i;
       }
       return myArray;
+    },
+    getOffsetFromKey: function(keycode) {
+      var offset_xy;
+      offset_xy = null;
+      if (__indexOf.call(Brew.keymap.MOVE_LEFT, keycode) >= 0) {
+        offset_xy = Brew.directions.w;
+      } else if (__indexOf.call(Brew.keymap.MOVE_RIGHT, keycode) >= 0) {
+        offset_xy = Brew.directions.e;
+      } else if (__indexOf.call(Brew.keymap.MOVE_UP, keycode) >= 0) {
+        offset_xy = Brew.directions.n;
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWN, keycode) >= 0) {
+        offset_xy = Brew.directions.s;
+      } else if (__indexOf.call(Brew.keymap.MOVE_UPLEFT, keycode) >= 0) {
+        offset_xy = Brew.directions.nw;
+      } else if (__indexOf.call(Brew.keymap.MOVE_UPRIGHT, keycode) >= 0) {
+        offset_xy = Brew.directions.ne;
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWNLEFT, keycode) >= 0) {
+        offset_xy = Brew.directions.sw;
+      } else if (__indexOf.call(Brew.keymap.MOVE_DOWNRIGHT, keycode) >= 0) {
+        offset_xy = Brew.directions.se;
+      }
+      return offset_xy;
     },
     getOffsetInfo: function(offset_xy) {
       var info;

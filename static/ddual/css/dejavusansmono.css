@@ -1,6 +1,12 @@
-@font-face {
+/*@font-face {
   font-family: 'DejaVuSansMono';
   font-style: normal;
   font-weight: 400;
   src: local('DejaVu Sans Mono'), url(DejaVuSansMono.ttf) format('ttf');
+}
+*/
+
+@font-face {
+  font-family: 'DejaVuSansMono';
+  src: local('DejaVuSansMono'), url(DejaVuSansMono.woff) format('woff');
 }

@@ -28,6 +28,7 @@
       this.incoming_monster = {};
       this.incoming_item = {};
       this.item_catalog = {};
+      this.debugDropdownMenu();
     }
 
     Game.prototype.keypress = function(e) {
@@ -280,7 +281,8 @@
 
     Game.prototype.msg = function(text) {
       console.log(text);
-      return this.ui.drawMessagesPanel(text);
+      this.ui.addMessage(text, this.turn);
+      return this.ui.drawMessagesPanel();
     };
 
     Game.prototype.msgFrom = function(monster, text) {
@@ -328,6 +330,7 @@
           return this.msg("You can't move there");
         }
       } else {
+        this.ui.updateTerrainFooter(this.my_player.coordinates, new_xy);
         this.moveThing(this.my_player, new_xy);
         return this.endPlayerTurn();
       }
@@ -335,7 +338,7 @@
 
     Game.prototype.getApplicableTerrain = function(thing) {
       var apply_list, neighbors, t, xy, _i, _len;
-      neighbors = thing.coordinates.getAdjacent();
+      neighbors = thing.coordinates.getSurrounding();
       apply_list = [];
       for (_i = 0, _len = neighbors.length; _i < _len; _i++) {
         xy = neighbors[_i];
@@ -657,43 +660,103 @@
           return _results;
         })()).length > 0;
       } else {
-        return this.checkRangedAttack(attacker, target_mob);
+        return this.checkRangedAttack(attacker, target_mob)[0];
       }
     };
 
+    Game.prototype.getPotentialTargets = function(shooter, target_def) {
+      var enemies_in_view, err_msg, is_ok, m, potential_targets, target_player, traverse_lst, _i, _len, _ref;
+      if (target_def.range == null) {
+        console.error("need at least range in target definition");
+      }
+      target_player = typeof false !== "undefined" && false !== null ? false : target_def.target_player;
+      if (target_player) {
+        enemies_in_view = (function() {
+          var _i, _len, _ref, _results;
+          _ref = this.my_level.getMonsters();
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            m = _ref[_i];
+            if (shooter.hasKnowledgeOf(m) && Brew.utils.compareThing(m, this.my_player)) {
+              _results.push(m);
+            }
+          }
+          return _results;
+        }).call(this);
+      } else {
+        enemies_in_view = (function() {
+          var _i, _len, _ref, _results;
+          _ref = this.my_level.getMonsters();
+          _results = [];
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            m = _ref[_i];
+            if (shooter.hasKnowledgeOf(m) && !Brew.utils.compareThing(m, this.my_player)) {
+              _results.push(m);
+            }
+          }
+          return _results;
+        }).call(this);
+      }
+      potential_targets = [];
+      for (_i = 0, _len = enemies_in_view.length; _i < _len; _i++) {
+        m = enemies_in_view[_i];
+        _ref = this.checkGenericRangedAttack(shooter.coordinates, m.coordinates, {
+          range: target_def.range,
+          blockedByTerrain: true,
+          blockedByOtherTargets: true
+        }), is_ok = _ref[0], err_msg = _ref[1], traverse_lst = _ref[2];
+        if (is_ok) {
+          potential_targets.push(m);
+        }
+      }
+      return potential_targets;
+    };
+
+    Game.prototype.checkGenericRangedAttack = function(start_xy, target_xy, target_def) {
+      var dist, full_traverse_lst, i, len, m, t, traverse_lst, xy, _i, _len;
+      dist = Brew.utils.dist2d(start_xy, target_xy);
+      if (dist > target_def.range) {
+        return [false, Brew.errors.ATTACK_OUT_OF_RANGE, []];
+      }
+      full_traverse_lst = Brew.utils.getLineBetweenPoints(start_xy, target_xy);
+      if (full_traverse_lst.length < 2) {
+        throw "Traversal path should never be less than 2";
+      } else {
+        len = full_traverse_lst.length;
+        traverse_lst = full_traverse_lst.slice(1, +(len - 1) + 1 || 9e9);
+      }
+      for (i = _i = 0, _len = traverse_lst.length; _i < _len; i = ++_i) {
+        xy = traverse_lst[i];
+        if (i === (traverse_lst.length - 1)) {
+          continue;
+        }
+        t = this.my_level.getTerrainAt(xy);
+        if (t.blocks_walking && target_def.blockedByTerrain) {
+          return [false, Brew.errors.ATTACK_BLOCKED_TERRAIN, []];
+        }
+        m = this.my_level.getMonsterAt(xy);
+        if ((m != null) && target_def.blockedByOtherTargets) {
+          return [false, Brew.errors.ATTACK_BLOCKED_MONSTER + m.name, []];
+        }
+      }
+      return [true, "OK", traverse_lst];
+    };
+
     Game.prototype.checkRangedAttack = function(attacker, target) {
-      var dist, len, m, start_xy, t, target_xy, traverse_lst, xy, _i, _len;
+      var err_msg, is_ok, traverse_lst, _ref;
       if (!attacker.hasKnowledgeOf(target)) {
         return [false, Brew.errors.ATTACK_NOT_KNOWN, []];
       }
       if (!attacker.canView(target.coordinates)) {
         return [false, Brew.errors.ATTACK_NOT_VISIBLE, []];
       }
-      dist = Brew.utils.dist2d(attacker.coordinates, target.coordinates);
-      if (dist > attacker.getAttackRange()) {
-        return [false, Brew.errors.ATTACK_OUT_OF_RANGE, []];
-      }
-      start_xy = attacker.coordinates;
-      target_xy = target.coordinates;
-      traverse_lst = Brew.utils.getLineBetweenPoints(start_xy, target_xy);
-      if (traverse_lst.length < 2) {
-        throw "Traversal path should never be less than 2";
-      } else {
-        len = traverse_lst.length;
-        traverse_lst = traverse_lst.slice(1, +(len - 1) + 1 || 9e9);
-      }
-      for (_i = 0, _len = traverse_lst.length; _i < _len; _i++) {
-        xy = traverse_lst[_i];
-        t = this.my_level.getTerrainAt(xy);
-        if (t.blocks_walking) {
-          return [false, Brew.errors.ATTACK_BLOCKED, []];
-        }
-        m = this.my_level.getMonsterAt(xy);
-        if ((m != null) && !Brew.utils.compareThing(m, attacker) && !Brew.utils.compareThing(m, target)) {
-          return [false, Brew.errors.ATTACK_BLOCKED, []];
-        }
-      }
-      return [true, "OK", traverse_lst];
+      _ref = this.checkGenericRangedAttack(attacker.coordinates, target.coordinates, {
+        range: attacker.getAttackRange(),
+        blockedByTerrain: true,
+        blockedByOtherTargets: true
+      }), is_ok = _ref[0], err_msg = _ref[1], traverse_lst = _ref[2];
+      console.log(attacker, err_msg);
+      return [is_ok, err_msg, traverse_lst];
     };
 
     Game.prototype.meleeAttack = function(attacker, defender) {
@@ -1048,7 +1111,7 @@
         return path.push(new Coordinate(x, y));
       };
       astar = new ROT.Path.AStar(end_xy.x, end_xy.y, passable_fn, {
-        topology: 4
+        topology: 8
       });
       astar.compute(start_xy.x, start_xy.y, update_fn);
       next_xy = path[1];
@@ -1136,7 +1199,11 @@
     };
 
     Game.prototype.doPlayerAbility = function(ability, keycode) {
-      return this.ui.showTargeting(ability, keycode);
+      if (Brew.ability[ability].range === 0) {
+        return this.abil.execute(ability, this.my_player.coordinates, false);
+      } else {
+        return this.ui.showTargeting(ability, keycode);
+      }
     };
 
     Game.prototype.doTargetingAt = function(ability, target_xy) {
@@ -1263,7 +1330,7 @@
     };
 
     Game.prototype.setFlagWithCounter = function(thing, flag, effect_turns) {
-      thing.setFlagCounter(flag, this.turn + effect_turns);
+      thing.setFlagCounter(flag, effect_turns, this.turn + effect_turns);
       return true;
     };
 
@@ -1277,6 +1344,7 @@
           thing.removeFlagCounter(flag);
           if (Brew.utils.compareThing(thing, this.my_player)) {
             this.msg("You are no longer " + flag);
+            this.ui.drawHudAll();
           } else {
             this.msgFrom(thing, "" + thing.name + " is no longer " + flag);
           }

@@ -148,8 +148,8 @@ window.Brew.PathMap =
 		lowest_xy = location_xy
 		lowest_value = pathmap[location_xy.toKey()]
 		
-		# for neighbor_xy in location_xy.getSurrounding()
-		for neighbor_xy in location_xy.getAdjacent()
+		for neighbor_xy in location_xy.getSurrounding()
+		# for neighbor_xy in location_xy.getAdjacent()
 			temp_value = pathmap[neighbor_xy.toKey()]
 			if temp_value < lowest_value
 				lowest_value = temp_value

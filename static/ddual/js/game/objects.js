@@ -92,9 +92,9 @@
       }).call(this);
     };
 
-    Thing.prototype.setFlagCounter = function(flag, stop_turn) {
+    Thing.prototype.setFlagCounter = function(flag, effect_turns, stop_turn) {
       this.setFlag(flag);
-      this.flagcounters[flag] = stop_turn;
+      this.flagcounters[flag] = [effect_turns, stop_turn];
       return true;
     };
 
@@ -105,7 +105,11 @@
     };
 
     Thing.prototype.getFlagCount = function(flag) {
-      return this.flagcounters[flag];
+      return this.flagcounters[flag][1];
+    };
+
+    Thing.prototype.getFlagCountDuration = function(flag) {
+      return this.flagcounters[flag][0];
     };
 
     Thing.prototype.createStat = function(stat_name, init_value) {

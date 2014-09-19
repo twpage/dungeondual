@@ -25,6 +25,8 @@ class window.Brew.Game
 		
 		@item_catalog = {}
 
+		@debugDropdownMenu()
+
 	# send all keypresses to the user_interface class
 	keypress: (e) -> 
 		# now = new Date()
@@ -278,8 +280,8 @@ class window.Brew.Game
 
 	msg: (text) ->
 		console.log(text)
-		# @addMessage(text)
-		@ui.drawMessagesPanel(text)
+		@ui.addMessage(text, @turn)
+		@ui.drawMessagesPanel()
 
 	msgFrom: (monster, text) ->
 		# only show message if playe can see the monster
@@ -334,14 +336,15 @@ class window.Brew.Game
 
 		else
 			# otherwise just move around
+			@ui.updateTerrainFooter(@my_player.coordinates, new_xy)
 			@moveThing(@my_player, new_xy)
 			@endPlayerTurn()
 
 	getApplicableTerrain: (thing) ->
 		# return a list of any terrain apply-able around a player/thing
 		
-		# neighbors = thing.coordinates.getSurrounding()
-		neighbors = thing.coordinates.getAdjacent()
+		neighbors = thing.coordinates.getSurrounding()
+		# neighbors = thing.coordinates.getAdjacent()
 		# neighbors.push(thing.coordinates) # probably cant apply something you are standing on
 		
 		apply_list = []
@@ -350,8 +353,8 @@ class window.Brew.Game
 			if t? and t?.can_apply == true
 				apply_list.push([
 					xy.subtract(thing.coordinates),
-					t]
-				)
+					t
+				])
 				
 		return apply_list
 		
@@ -678,7 +681,71 @@ class window.Brew.Game
 			return (xy for xy in attacker.coordinates.getSurrounding() when xy.compare(target_mob.coordinates)).length > 0
 			
 		else
-			return @checkRangedAttack(attacker, target_mob)
+			return @checkRangedAttack(attacker, target_mob)[0]
+
+	getPotentialTargets: (shooter, target_def) ->
+		# return a list of valid targets for a shooter/caster and a given set of criteria
+
+		# range
+		if not target_def.range?
+			console.error("need at least range in target definition")
+
+		# target player?
+		target_player = false ? target_def.target_player
+
+		if target_player
+			# todo: include player allies
+			enemies_in_view = (m for m in @my_level.getMonsters() when shooter.hasKnowledgeOf(m) and Brew.utils.compareThing(m, @my_player))
+		else
+			enemies_in_view = (m for m in @my_level.getMonsters() when shooter.hasKnowledgeOf(m) and not Brew.utils.compareThing(m, @my_player))
+
+		potential_targets = []
+		for m in enemies_in_view
+			[is_ok, err_msg, traverse_lst] = @checkGenericRangedAttack(
+				shooter.coordinates, 
+				m.coordinates,
+				{
+					range: target_def.range,
+					blockedByTerrain: true,
+					blockedByOtherTargets: true
+				}
+			)
+			if is_ok
+				potential_targets.push(m)
+
+		return potential_targets
+
+	checkGenericRangedAttack: (start_xy, target_xy, target_def) ->
+		# too far away?
+		dist = Brew.utils.dist2d(start_xy, target_xy)
+		if dist > target_def.range
+			return [false, Brew.errors.ATTACK_OUT_OF_RANGE, []]
+
+		# make sure nothing is in the way
+		full_traverse_lst = Brew.utils.getLineBetweenPoints(start_xy, target_xy)
+		
+		# ignore first and last points
+		if full_traverse_lst.length < 2
+			throw "Traversal path should never be less than 2"
+		else
+			len = full_traverse_lst.length
+			traverse_lst = full_traverse_lst[1..len-1]
+
+		# make sure there aren't any other monsters in the way
+		for xy, i in traverse_lst
+			# ignore the final spot
+			if i == (traverse_lst.length - 1)
+				continue
+
+			t = @my_level.getTerrainAt(xy)
+			if t.blocks_walking and target_def.blockedByTerrain
+				return [false, Brew.errors.ATTACK_BLOCKED_TERRAIN, []]
+
+			m = @my_level.getMonsterAt(xy)
+			if m? and target_def.blockedByOtherTargets
+				return [false, Brew.errors.ATTACK_BLOCKED_MONSTER + m.name, []]
+
+		return [true, "OK", traverse_lst]
 
 	checkRangedAttack: (attacker, target) ->
 		# returns true if an attacker can hit a given target
@@ -691,35 +758,18 @@ class window.Brew.Game
 		if not attacker.canView(target.coordinates)
 			return [false, Brew.errors.ATTACK_NOT_VISIBLE, []]
 
-		# too far away?
-		dist = Brew.utils.dist2d(attacker.coordinates, target.coordinates)
-		if dist > attacker.getAttackRange()
-			return [false, Brew.errors.ATTACK_OUT_OF_RANGE, []]
-
-		# make sure nothing is in the way
-		start_xy = attacker.coordinates
-		target_xy = target.coordinates
-		traverse_lst = Brew.utils.getLineBetweenPoints(start_xy, target_xy)
+		[is_ok, err_msg, traverse_lst] = @checkGenericRangedAttack(
+			attacker.coordinates, 
+			target.coordinates,
+			{
+				range: attacker.getAttackRange(),
+				blockedByTerrain: true,
+				blockedByOtherTargets: true
+			}
+		)
+		console.log(attacker, err_msg)
+		return [is_ok, err_msg, traverse_lst]
 		
-		# ignore first and last points
-		if traverse_lst.length < 2
-			throw "Traversal path should never be less than 2"
-		else
-			len = traverse_lst.length
-			traverse_lst = traverse_lst[1..len-1]
-
-		# make sure there aren't any other monsters in the way
-		for xy in traverse_lst
-			t = @my_level.getTerrainAt(xy)
-			if t.blocks_walking
-				return [false, Brew.errors.ATTACK_BLOCKED, []]
-
-			m = @my_level.getMonsterAt(xy)
-			if m? and not Brew.utils.compareThing(m, attacker) and not Brew.utils.compareThing(m, target)
-				return [false, Brew.errors.ATTACK_BLOCKED, []]
-
-		return [true, "OK", traverse_lst]
-			
 	meleeAttack: (attacker, defender) ->
 		return @attack(attacker, defender, true)
 		
@@ -1046,7 +1096,7 @@ class window.Brew.Game
 		update_fn = (x, y) ->
 			path.push(new Coordinate(x, y))
 
-		astar = new ROT.Path.AStar(end_xy.x, end_xy.y, passable_fn, {topology: 4})
+		astar = new ROT.Path.AStar(end_xy.x, end_xy.y, passable_fn, {topology: 8})
 		astar.compute(start_xy.x, start_xy.y, update_fn)
 
 		next_xy = path[1]
@@ -1124,7 +1174,11 @@ class window.Brew.Game
 
 	doPlayerAbility: (ability, keycode) ->
 		# @my_player.active_ability = ability
-		@ui.showTargeting(ability, keycode)
+
+		if Brew.ability[ability].range == 0
+			@abil.execute(ability, @my_player.coordinates, false)
+		else
+			@ui.showTargeting(ability, keycode)
 
 	# doPlayerDisableAbility: (ability) ->
 	# 	@my_player.active_ability = null
@@ -1278,7 +1332,7 @@ class window.Brew.Game
 
 	# handle flag timeout for temp effects, needs to know game turn
 	setFlagWithCounter: (thing, flag, effect_turns) ->
-		thing.setFlagCounter(flag, @turn + effect_turns)
+		thing.setFlagCounter(flag, effect_turns, @turn + effect_turns)
 		true
 
 	checkFlagCounters: (thing) ->
@@ -1289,6 +1343,7 @@ class window.Brew.Game
 
 				if Brew.utils.compareThing(thing, @my_player)
 					@msg("You are no longer #{flag}")
+					@ui.drawHudAll()
 				else
 					@msgFrom(thing, "#{thing.name} is no longer #{flag}")
 

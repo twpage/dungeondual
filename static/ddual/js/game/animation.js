@@ -281,23 +281,39 @@
   window.Brew.ShinyAnimation = (function(_super) {
     __extends(ShinyAnimation, _super);
 
-    function ShinyAnimation(target, shine_color) {
-      this.target = target;
+    function ShinyAnimation(target_xy, shine_color) {
+      this.target_xy = target_xy;
       this.shine_color = shine_color;
       ShinyAnimation.__super__.constructor.call(this, "shiny");
-      this.oldcolor = this.target.light_source;
       this.over_saturate = true;
+      this.overhead_cache = null;
     }
 
     ShinyAnimation.prototype.cleanup = function(game, ui, level) {
       if (this.turn === 1) {
-        return this.target.light_source = this.oldcolor;
+        level.removeOverheadAt(this.target_xy);
+        if (this.overhead_cache != null) {
+          return level.setOverheadAt(this.target, this.overhead_cache);
+        }
       }
     };
 
     ShinyAnimation.prototype.update = function(game, ui, level) {
+      var existing_overhead, flash, m;
       if (this.turn === 1) {
-        return this.target.light_source = this.shine_color;
+        existing_overhead = level.getOverheadAt(this.target_xy);
+        if (existing_overhead != null) {
+          this.overhead_cache = existing_overhead;
+        }
+        flash = Brew.featureFactory("TILE_FLASH", {
+          color: this.shine_color,
+          light_source: this.shine_color
+        });
+        m = level.getMonsterAt(this.target_xy);
+        if (m != null) {
+          flash.code = m.code;
+        }
+        return level.setOverheadAt(this.target_xy, flash);
       } else {
         return this.active = false;
       }

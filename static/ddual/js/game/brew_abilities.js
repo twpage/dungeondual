@@ -200,7 +200,7 @@
       this.gameLevel().removeMonsterAt(center_xy);
       this.game.scheduler.remove(target);
       this.game.ui.drawMapAt(center_xy);
-      this.game.addAnimation(new Brew.ShinyAnimation(this.gamePlayer(), Brew.colors.violet));
+      this.game.addAnimation(new Brew.ShinyAnimation(center_xy, Brew.colors.violet));
       return true;
     };
 
@@ -224,7 +224,7 @@
         message = "You roar a terrifying war cry!!";
       }
       this.game.msg(message);
-      this.game.addAnimation(new Brew.ShinyAnimation(this.gamePlayer(), Brew.colors.hf_orange));
+      this.game.addAnimation(new Brew.ShinyAnimation(this.gamePlayer().coordinates, Brew.colors.hf_orange));
       _ref = this.gamePlayer().knowledge;
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         thing_id = _ref[_i];
@@ -246,7 +246,7 @@
         message = "You take a moment to ready your defenses";
       }
       this.game.msg(message);
-      this.game.addAnimation(new Brew.ShinyAnimation(this.gamePlayer(), Brew.colors.red));
+      this.game.addAnimation(new Brew.ShinyAnimation(this.gamePlayer().coordinates, Brew.colors.red));
       this.game.setFlagWithCounter(this.gamePlayer(), Brew.flags.defended, 10);
       return true;
     };

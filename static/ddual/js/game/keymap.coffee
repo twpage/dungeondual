@@ -1,52 +1,46 @@
+# vi keys look like this
+# y k u
+#  \|/
+# h-.-l
+#  /|\
+# b j n
+
 window.Brew.keymap =
-	MOVE_LEFT: [ROT.VK_LEFT, ROT.VK_NUMPAD4] #, ROT.VK_A]
-	MOVE_RIGHT: [ROT.VK_RIGHT, ROT.VK_NUMPAD6] #, ROT.VK_D]
-	MOVE_UP: [ROT.VK_UP, ROT.VK_NUMPAD8] #, ROT.VK_W]
-	MOVE_DOWN: [ROT.VK_DOWN, ROT.VK_NUMPAD2] #, ROT.VK_S]
+	MOVE_LEFT: [ROT.VK_LEFT, ROT.VK_NUMPAD4, ROT.VK_H]
+	MOVE_RIGHT: [ROT.VK_RIGHT, ROT.VK_NUMPAD6, ROT.VK_L]
+	MOVE_UP: [ROT.VK_UP, ROT.VK_NUMPAD8, ROT.VK_K]
+	MOVE_DOWN: [ROT.VK_DOWN, ROT.VK_NUMPAD2, ROT.VK_J]
 
 	# diagonals
-	MOVE_DOWNLEFT: [ROT.VK_NUMPAD1]
-	MOVE_DOWNRIGHT: [ROT.VK_NUMPAD3]
-	MOVE_UPLEFT: [ROT.VK_NUMPAD7]
-	MOVE_UPRIGHT: [ROT.VK_NUMPAD9]
+	MOVE_DOWNLEFT: [ROT.VK_NUMPAD1, ROT.VK_B]
+	MOVE_DOWNRIGHT: [ROT.VK_NUMPAD3, ROT.VK_N]
+	MOVE_UPLEFT: [ROT.VK_NUMPAD7, ROT.VK_Y]
+	MOVE_UPRIGHT: [ROT.VK_NUMPAD9, ROT.VK_U]
 
 	GENERIC_ACTION: [ROT.VK_SPACE, ROT.VK_NUMPAD5]
-	TALK: [ROT.VK_T]
-	USE: [ROT.VK_U]
+	APPLY: [ROT.VK_A] 
+	DROP: [ROT.VK_D]
+	REMOVE: [ROT.VK_R]
+	EQUIP: [ROT.VK_E]
+
+	TALK: [ROT.VK_T] # throw?
+
 	INVENTORY: [ROT.VK_I]
 	SHOW_ABILITIES: [ROT.VK_Z]
 
-# 		else if keycode == 191 # / ? help
-# 			@showHelp()
 
 	HELP: [ROT.VK_SLASH, ROT.VK_QUESTION_MARK]
 
-# 		else if keycode == 192 ## back tick `
-# 			@debugAtCoords()
 	DEBUG: [ROT.VK_BACK_QUOTE]
 
 	ABILITY_HOTKEY: [ROT.VK_1, ROT.VK_2, ROT.VK_3, ROT.VK_4, ROT.VK_5, ROT.VK_6]
 
-# 		# # d : drop
-# 		# else if keycode == 68
-# 		# 	@popup.context = "drop"
-# 		# 	@showInventory()
-		
-# 		# # e : equip
-# 		# else if keycode == 69
-# 		# 	@popup.context = "equip"
-# 		# 	@showInventory()
+	EXIT_OR_CANCEL: [ROT.VK_ESCAPE]
+	CYCLE_TARGET: [ROT.VK_TAB]
+	
+	STAIRS_DOWN: [ROT.VK_LESS_THAN, ROT.VK_COMMA]
+	STAIRS_UP: [ROT.VK_GREATER_THAN, ROT.VK_PERIOD]
 
-# 		# # r : remove
-# 		# else if keycode == 82
-# 		# 	@popup.context = "remove"
-# 		# 	@showInventory()
-			
-# 		# # a : apply / arm / activate
-# 		# else if keycode == 65
-# 		# 	@popup.context = "apply"
-# 		# 	@showInventory()
-			
 # 		# # q : toggle pathmaps debug
 # 		# else if keycode == 81
 # 		# 	@debugPathMaps()
@@ -54,3 +48,17 @@ window.Brew.keymap =
 # 		# # / : toggle FOV debug
 # 		# else if keycode == 191 
 # 		# 	@debugMonsterFov()
+
+
+MOVEKEYS = []
+MOVEKEYS.merge(Brew.keymap.MOVE_LEFT)
+MOVEKEYS.merge(Brew.keymap.MOVE_RIGHT)
+MOVEKEYS.merge(Brew.keymap.MOVE_UP)
+MOVEKEYS.merge(Brew.keymap.MOVE_DOWN)
+MOVEKEYS.merge(Brew.keymap.MOVE_DOWNLEFT)
+MOVEKEYS.merge(Brew.keymap.MOVE_DOWNRIGHT)
+MOVEKEYS.merge(Brew.keymap.MOVE_UPLEFT)
+MOVEKEYS.merge(Brew.keymap.MOVE_UPRIGHT)
+
+window.Brew.keymap.MOVEKEYS = MOVEKEYS
+

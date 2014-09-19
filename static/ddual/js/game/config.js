@@ -71,6 +71,7 @@
     black: [20, 20, 20],
     normal: [192, 192, 192],
     half_white: [128, 128, 128],
+    dim_screen: [50, 50, 50],
     memory_bg: [20, 20, 20],
     memory: [104, 120, 120],
     pair_shade: [0, 51, 102],
@@ -237,7 +238,8 @@
     ATTACK_NOT_KNOWN: "target not known",
     ATTACK_NOT_VISIBLE: "target not visible",
     ATTACK_OUT_OF_RANGE: "target is out of range",
-    ATTACK_BLOCKED: "target is blocked"
+    ATTACK_BLOCKED_TERRAIN: "target is blocked by terrain",
+    ATTACK_BLOCKED_MONSTER: "target is blocked by a monster"
   };
 
   window.Brew.stat = {
@@ -364,7 +366,7 @@
     },
     "defend_": {
       name: "Defend!",
-      range: 50,
+      range: 0,
       pathing: false,
       needs_target: false,
       pair: true,
@@ -393,43 +395,43 @@
     }
   };
 
-  window.Brew.helptext = "Move                WASD or Arrow Keys\nRest/Pickup         Space\nUse (items/doors)   u\nInventory           i\nSwitch Abilities    1234... or z\nAbility Menu        z\nUse Ability         (mouse/click)\n\n[Co-op Mode]\nTalk                t\nSend Ability        (mouse/click) on\n%c{black_hex}____________________%c{}partner screen\n\nMouse will turn green when and where you \n can use your current ability/spell \n\nLong-Click on a monster for pop-up info\n including powers and statuses";
+  window.Brew.helptext = "Move                NUMPAD, Arrow Keys, vi keys\nRest/Pickup         Space, NUMPAD 5\nApply (items/doors) a\nInventory           i\nUse Ability         1234...\nView Abilities      z\n\n\n[Co-op Mode]\nTalk                t\nSend Ability        (mouse/click) on\n%c{black_hex}____________________%c{}partner screen\n\nMouse will turn green when and where you \n can use your current ability/spell \n\nLong-Click on a monster for pop-up info\n including powers and statuses";
 
   flagDesc = {};
 
-  flagDesc[Brew.flags.keeps_distance] = "Attacks from far away";
+  flagDesc[Brew.flags.keeps_distance] = ["Attacks from a distance", ""];
 
-  flagDesc[Brew.flags.invisible] = "Is invisible";
+  flagDesc[Brew.flags.invisible] = ["Is invisible", "Invisible"];
 
-  flagDesc[Brew.flags.flees_when_wounded] = "Flees when wounded";
+  flagDesc[Brew.flags.flees_when_wounded] = ["Flees when wounded", ""];
 
-  flagDesc[Brew.flags.summons_zombies] = "Can summon zombies";
+  flagDesc[Brew.flags.summons_zombies] = ["Can summon zombies", ""];
 
-  flagDesc[Brew.flags.weapon_pierce] = "Also hits 1 enemy directly behind target";
+  flagDesc[Brew.flags.weapon_pierce] = ["Attacks pierce through targets, up to 1 space behind", "Attacks pierce through targets, up to 1 space behind"];
 
-  flagDesc[Brew.flags.weapon_smash] = "Hits all surrounding enemies";
+  flagDesc[Brew.flags.weapon_smash] = ["Attacks hits all surrounding targets", "Attacks hits all surrounding targets"];
 
-  flagDesc[Brew.flags.weapon_stun] = "Hits always stun target";
+  flagDesc[Brew.flags.weapon_stun] = ["Successful attacks will always stun", "Successful attacks will always stun"];
 
-  flagDesc[Brew.flags.weapon_stun_chance] = "Hits stun target 33% of the time";
+  flagDesc[Brew.flags.weapon_stun_chance] = ["Successfull attacks will stun one-third of the time", "Successfull attacks will stun one-third of the time"];
 
-  flagDesc[Brew.flags.weapon_burning] = "Attack sets targets on fire.";
+  flagDesc[Brew.flags.weapon_burning] = ["Attack sets targets on fire", "Successfull attacks will set enemies on fire"];
 
-  flagDesc[Brew.flags.weapon_poison] = "Attack poisons targets";
+  flagDesc[Brew.flags.weapon_poison] = ["Attack poisons targets", "Successfull attacks will poison enemies"];
 
-  flagDesc[Brew.flags.stunned] = "Is stunned and can't move";
+  flagDesc[Brew.flags.stunned] = ["Is stunned and can't move", "Stunned"];
 
-  flagDesc[Brew.flags.is_scared] = "Is currently scared of you";
+  flagDesc[Brew.flags.is_scared] = ["Is currently scared of you", ""];
 
-  flagDesc[Brew.flags.is_flying] = "Flies";
+  flagDesc[Brew.flags.is_flying] = ["Flies", "Flying"];
 
-  flagDesc[Brew.flags.is_mighty] = "Is supernaturally strong";
+  flagDesc[Brew.flags.is_mighty] = ["Is supernaturally strong", "Mighty"];
 
-  flagDesc[Brew.flags.on_fire] = "Is on fire";
+  flagDesc[Brew.flags.on_fire] = ["Is on fire", "On Fire"];
 
-  flagDesc[Brew.flags.defended] = "Well-defended";
+  flagDesc[Brew.flags.defended] = ["Is well-defended", "Defend+"];
 
-  flagDesc[Brew.flags.poisoned] = "Poisoned";
+  flagDesc[Brew.flags.poisoned] = ["Is poisoned", "Poisoned"];
 
   window.Brew.flagDesc = flagDesc;
 

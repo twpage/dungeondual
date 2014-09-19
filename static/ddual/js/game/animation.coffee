@@ -227,22 +227,50 @@ class window.Brew.FireballAnimation extends Brew.Animation
 		game.addAnimation(new Brew.ImpactAnimation(impact_lst, @rocket_item.color, @attacker, @rocket_item))
 
 class window.Brew.ShinyAnimation extends Brew.Animation
-	constructor: (@target, @shine_color) ->
+	constructor: (@target_xy, @shine_color) ->
 		super "shiny"
-		@oldcolor = @target.light_source
 		@over_saturate = true
+		@overhead_cache = null
 
 	cleanup: (game, ui, level) ->
 		if @turn == 1
-			@target.light_source = @oldcolor
+			level.removeOverheadAt(@target_xy)
+			if @overhead_cache?
+				level.setOverheadAt(@target, @overhead_cache)
 
 	update: (game, ui, level) ->
 		if @turn == 1
-			@target.light_source = @shine_color
+			existing_overhead = level.getOverheadAt(@target_xy)
+			if existing_overhead?
+				@overhead_cache = existing_overhead
 
+			flash = Brew.featureFactory("TILE_FLASH", {color: @shine_color, light_source: @shine_color})
+			# monster there?
+			m = level.getMonsterAt(@target_xy)
+			if m?  
+				flash.code = m.code
+			level.setOverheadAt(@target_xy, flash)
 
 		else
 			@active = false
+
+# class window.Brew.ShinyAnimation extends Brew.Animation
+# 	constructor: (@target, @shine_color) ->
+# 		super "shiny"
+# 		@oldcolor = @target.light_source
+# 		@over_saturate = true
+
+# 	cleanup: (game, ui, level) ->
+# 		if @turn == 1
+# 			@target.light_source = @oldcolor
+
+# 	update: (game, ui, level) ->
+# 		if @turn == 1
+# 			@target.light_source = @shine_color
+
+
+# 		else
+# 			@active = false
 
 class window.Brew.CircleAnimation extends Brew.Animation
 	constructor: (@center_xy, @max_radius, @circle_color) ->
